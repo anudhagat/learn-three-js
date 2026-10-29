@@ -6,6 +6,11 @@ export const GRAVITY = -9.8;
 export const RESTITUTION = 0.8; // Coefficient of restitution (bounciness)
 export const REST_VELOCITY = 0.5; // Below this bounce speed, the ball stops
 export const MAX_DELTA = 1 / 30; // Avoid huge steps after tab switches
+export const SQUASH_DURATION = 0.1; // Seconds the ball stays squashed on impact
+const SQUASH_PER_SPEED = 0.06; // Squash depth gained per unit of impact speed
+const MAX_SQUASH = 0.4;
+const STRETCH_PER_SPEED = 0.03; // Stretch gained per unit of speed in flight
+const MAX_STRETCH = 0.25;
 
 export interface BallState {
   y: number; // Height of the ball's center
@@ -34,12 +39,21 @@ const fall = (y: number, v: number, t: number) => ({
   v: v + GRAVITY * t,
 });
 
+// Advance the squash timer, ending the squash once it has run its course
+const advanceSquash = (state: BallState, dt: number): BallState => {
+  if (state.squashTime < 0) return state;
+  const squashTime = state.squashTime + dt;
+  return { ...state, squashTime: squashTime >= SQUASH_DURATION ? -1 : squashTime };
+};
+
 export const stepBall = (state: BallState, rawDelta: number): BallState => {
   if (state.atRest) return state;
 
   const dt = Math.min(rawDelta, MAX_DELTA);
   const next = fall(state.y, state.v, dt);
-  if (next.y > BALL_CENTER_LIMIT) return { ...state, ...next };
+  if (next.y > BALL_CENTER_LIMIT) {
+    return advanceSquash({ ...state, ...next }, dt);
+  }
 
   // Find when in this frame the ball reaches the floor:
   // solve ½·g·t² + v·t + (y - limit) = 0 for t
@@ -50,20 +64,38 @@ export const stepBall = (state: BallState, rawDelta: number): BallState => {
     Math.max((-state.v - Math.sqrt(discriminant)) / (2 * a), 0),
     dt,
   );
-  const bounceV = -fall(state.y, state.v, tHit).v * RESTITUTION;
+  const impactSpeed = Math.abs(fall(state.y, state.v, tHit).v);
+  const bounceV = impactSpeed * RESTITUTION;
 
-  if (Math.abs(bounceV) < REST_VELOCITY) {
-    return { ...state, y: BALL_CENTER_LIMIT, v: 0, atRest: true };
+  if (bounceV < REST_VELOCITY) {
+    return { ...state, y: BALL_CENTER_LIMIT, v: 0, atRest: true, squashTime: -1 };
   }
 
   // Spend the rest of the frame on the way back up
-  return {
-    ...state,
-    ...fall(BALL_CENTER_LIMIT, bounceV, dt - tHit),
-  };
+  return advanceSquash(
+    {
+      ...state,
+      ...fall(BALL_CENTER_LIMIT, bounceV, dt - tHit),
+      squashTime: 0,
+      squashAmount: Math.min(impactSpeed * SQUASH_PER_SPEED, MAX_SQUASH),
+    },
+    dt - tHit,
+  );
 };
 
-export const getBallVisual = (state: BallState): BallVisual => ({
-  positionY: state.y,
-  scale: [1, 1, 1],
-});
+export const getBallVisual = (state: BallState): BallVisual => {
+  // Squash on impact, otherwise stretch with speed; y scale is `s`, x and z
+  // scale by 1/√s so the volume stays constant
+  const s =
+    state.squashTime >= 0
+      ? 1 -
+        state.squashAmount * Math.sin(Math.PI * (state.squashTime / SQUASH_DURATION))
+      : 1 + Math.min(Math.abs(state.v) * STRETCH_PER_SPEED, MAX_STRETCH);
+  const xz = 1 / Math.sqrt(s);
+
+  return {
+    // Keep the bottom of the ball from sinking into the floor
+    positionY: Math.max(state.y, FLOOR_POSITION_Y + BALL_RADIUS * s),
+    scale: [xz, s, xz],
+  };
+};
