@@ -100,6 +100,11 @@ describe("squash and stretch", () => {
     expect(minScaleY(4)).toBeLessThan(minScaleY(1));
   });
 
+  it("barely deforms on the last small bounces", () => {
+    expect(minScaleY(0.05)).toBeGreaterThan(0.98);
+    expect(getBallVisual(createBall(0, -1)).scale[1]).toBeLessThan(1.02);
+  });
+
   it("preserves volume", () => {
     simulate(createBall(BALL_CENTER_LIMIT + 2, 0), 3, 1 / 60, (s) => {
       const [x, y, z] = getBallVisual(s).scale;

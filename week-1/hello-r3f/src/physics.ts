@@ -7,10 +7,12 @@ export const RESTITUTION = 0.8; // Coefficient of restitution (bounciness)
 export const REST_VELOCITY = 0.5; // Below this bounce speed, the ball stops
 export const MAX_DELTA = 1 / 30; // Avoid huge steps after tab switches
 export const SQUASH_DURATION = 0.1; // Seconds the ball stays squashed on impact
-const SQUASH_PER_SPEED = 0.06; // Squash depth gained per unit of impact speed
+const REFERENCE_SPEED = 6; // Speed at which squash and stretch reach their maximum
 const MAX_SQUASH = 0.4;
-const STRETCH_PER_SPEED = 0.03; // Stretch gained per unit of speed in flight
 const MAX_STRETCH = 0.25;
+
+// Squares the speed ratio so slow late bounces are almost perfectly round
+const deformation = (speed: number) => Math.min(speed / REFERENCE_SPEED, 1) ** 2;
 
 export interface BallState {
   y: number; // Height of the ball's center
@@ -77,7 +79,7 @@ export const stepBall = (state: BallState, rawDelta: number): BallState => {
       ...state,
       ...fall(BALL_CENTER_LIMIT, bounceV, dt - tHit),
       squashTime: 0,
-      squashAmount: Math.min(impactSpeed * SQUASH_PER_SPEED, MAX_SQUASH),
+      squashAmount: MAX_SQUASH * deformation(impactSpeed),
     },
     dt - tHit,
   );
@@ -90,7 +92,7 @@ export const getBallVisual = (state: BallState): BallVisual => {
     state.squashTime >= 0
       ? 1 -
         state.squashAmount * Math.sin(Math.PI * (state.squashTime / SQUASH_DURATION))
-      : 1 + Math.min(Math.abs(state.v) * STRETCH_PER_SPEED, MAX_STRETCH);
+      : 1 + MAX_STRETCH * deformation(Math.abs(state.v));
   const xz = 1 / Math.sqrt(s);
 
   return {
