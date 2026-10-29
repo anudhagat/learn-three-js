@@ -4,9 +4,11 @@ import {
   BALL_RADIUS,
   FLOOR_POSITION_Y,
   GRAVITY,
+  INITIAL_POSITION_Y,
   RESTITUTION,
   createBall,
   getBallVisual,
+  jumpBall,
   stepBall,
   type BallState,
 } from "./physics";
@@ -138,5 +140,33 @@ describe("squash and stretch", () => {
       positionY: BALL_CENTER_LIMIT,
       scale: [1, 1, 1],
     });
+  });
+});
+
+describe("jumping", () => {
+  const peakAfter = (state: BallState) => {
+    let peak = -Infinity;
+    // Stop before the first landing so only the jump itself is measured
+    simulate(state, 1, 0.002, (s) => {
+      if (s.v >= 0) peak = Math.max(peak, s.y);
+    });
+    return peak;
+  };
+
+  it("wakes a resting ball and sends it up to the starting height", () => {
+    const resting = simulate(createBall(), 30, 1 / 60);
+    const jumping = jumpBall(resting);
+    expect(jumping.atRest).toBe(false);
+    expect(peakAfter(jumping)).toBeCloseTo(INITIAL_POSITION_Y, 2);
+  });
+
+  it("reaches the same height when clicked mid-air", () => {
+    const midAir = createBall(BALL_CENTER_LIMIT + 0.5, -3);
+    expect(peakAfter(jumpBall(midAir))).toBeCloseTo(INITIAL_POSITION_Y, 2);
+  });
+
+  it("does not push a ball already above the starting height", () => {
+    const high = jumpBall(createBall(INITIAL_POSITION_Y + 1, 2));
+    expect(high.v).toBe(0);
   });
 });

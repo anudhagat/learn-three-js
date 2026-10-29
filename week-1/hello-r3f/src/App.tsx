@@ -7,6 +7,7 @@ import {
   INITIAL_POSITION_Y,
   createBall,
   getBallVisual,
+  jumpBall,
   stepBall,
 } from "./physics";
 
@@ -23,7 +24,15 @@ const BouncingBall = () => {
   });
 
   return (
-    <mesh ref={meshRef} position={[0, INITIAL_POSITION_Y, 0]}>
+    <mesh
+      ref={meshRef}
+      position={[0, INITIAL_POSITION_Y, 0]}
+      onClick={() => {
+        ballRef.current = jumpBall(ballRef.current); // Jump back up to the starting height
+      }}
+      onPointerOver={() => (document.body.style.cursor = "pointer")}
+      onPointerOut={() => (document.body.style.cursor = "auto")}
+    >
       <sphereGeometry args={[BALL_RADIUS, 32, 32]} />
       <meshStandardMaterial color="#a5b2df" />
     </mesh>

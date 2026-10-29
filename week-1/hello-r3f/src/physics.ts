@@ -35,6 +35,13 @@ export const createBall = (y = INITIAL_POSITION_Y, v = 0.02): BallState => ({
   squashAmount: 0,
 });
 
+// Launch the ball upward so it peaks at its starting height
+export const jumpBall = (state: BallState): BallState => ({
+  ...state,
+  atRest: false,
+  v: Math.sqrt(2 * -GRAVITY * Math.max(INITIAL_POSITION_Y - state.y, 0)),
+});
+
 // Exact motion under constant gravity after `t` seconds
 const fall = (y: number, v: number, t: number) => ({
   y: y + v * t + 0.5 * GRAVITY * t * t,
