@@ -166,7 +166,17 @@ describe("jumping", () => {
   });
 
   it("does not push a ball already above the starting height", () => {
-    const high = jumpBall(createBall(INITIAL_POSITION_Y + 1, 2));
+    const high = jumpBall(createBall(INITIAL_POSITION_Y + 1, -2));
     expect(high.v).toBe(0);
+  });
+
+  it("ignores clicks while the ball is rising", () => {
+    const rising = createBall(BALL_CENTER_LIMIT + 0.5, 3);
+    expect(jumpBall(rising)).toEqual(rising);
+  });
+
+  it("still jumps while the ball is falling", () => {
+    const falling = jumpBall(createBall(BALL_CENTER_LIMIT + 0.5, -3));
+    expect(falling.v).toBeGreaterThan(0);
   });
 });
