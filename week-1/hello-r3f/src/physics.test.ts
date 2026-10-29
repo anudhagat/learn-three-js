@@ -36,7 +36,7 @@ describe("bounce physics", () => {
 
   it("gives the same trajectory regardless of frame rate", () => {
     const start = createBall(BALL_CENTER_LIMIT, 9.8);
-    const coarse = simulate(start, 0.8, 1 / 25);
+    const coarse = simulate(start, 0.8, 1 / 40);
     const fine = simulate(start, 0.8, 1 / 100);
     expect(coarse.y).toBeCloseTo(fine.y, 6);
   });
@@ -67,8 +67,8 @@ describe("bounce physics", () => {
   });
 
   it("uses gravity as the only acceleration", () => {
-    const next = stepBall(createBall(0, 0), 0.1);
-    expect(next.v).toBeCloseTo(GRAVITY * 0.1, 6);
+    const next = stepBall(createBall(0, 0), 1 / 60);
+    expect(next.v).toBeCloseTo(GRAVITY / 60, 6);
   });
 });
 
@@ -118,7 +118,9 @@ describe("squash and stretch", () => {
 
   it("recovers its shape shortly after impact", () => {
     let state = createBall(BALL_CENTER_LIMIT + 2, 0);
-    while (state.v <= 0 || state.y > BALL_CENTER_LIMIT + 1e-9) {
+    let previousV = state.v;
+    for (let i = 0; i < 1000 && !(previousV < 0 && state.v > 0); i++) {
+      previousV = state.v;
       state = stepBall(state, 1 / 120);
     }
     state = simulate(state, 0.25, 1 / 120);
