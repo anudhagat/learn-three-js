@@ -13,7 +13,7 @@ const BouncingBall = () => {
 
   useFrame((_, deltaTime) => {
     if (!meshRef.current) return;
-    worldRef.current = stepWorld(worldRef.current, deltaTime).world;
+    worldRef.current = stepWorld(worldRef.current, deltaTime, Math.random).world;
     const { positionY, scale, pitch, expression } = getView(worldRef.current);
     if (materialRef.current && materialRef.current.map !== faces[expression]) {
       materialRef.current.map = faces[expression];
@@ -28,7 +28,7 @@ const BouncingBall = () => {
       ref={meshRef}
       position={[0, INITIAL_POSITION_Y, 0]}
       onClick={() => {
-        worldRef.current = clickWorld(worldRef.current).world;
+        worldRef.current = clickWorld(worldRef.current, Math.random).world;
       }}
       onPointerOver={() => (document.body.style.cursor = "pointer")}
       onPointerOut={() => (document.body.style.cursor = "auto")}

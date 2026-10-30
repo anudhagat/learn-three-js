@@ -10,6 +10,15 @@ import {
 } from "./ball";
 import { getBallPitch, getBallVisual } from "./deformation";
 import {
+  getDustView,
+  spawnImpactDust,
+  spawnLaunchDust,
+  stepDust,
+  type DustView,
+  type Particle,
+} from "./dust";
+import type { Rng } from "./rng";
+import {
   createExpressionState,
   getExpression,
   registerClick,
@@ -21,6 +30,7 @@ export interface World {
   time: number; // Simulation clock in seconds
   ball: BallState;
   expression: ExpressionState;
+  dust: Particle[];
 }
 
 export type WorldEvent = ImpactEvent | { type: "launch" };
@@ -36,21 +46,25 @@ export interface WorldView {
   pitch: number; // Radians the ball looks up
   mode: BallMode;
   expression: Expression;
+  dust: DustView[];
 }
 
 export const createWorld = (): World => ({
   time: 0,
   ball: createBall(),
   expression: createExpressionState(),
+  dust: [],
 });
 
-export const stepWorld = (world: World, rawDelta: number): WorldStep => {
+export const stepWorld = (world: World, rawDelta: number, rng: Rng): WorldStep => {
   const dt = Math.min(rawDelta, MAX_DELTA);
   const { ball, events } = stepBallWithEvents(world.ball, dt);
-  return { world: { ...world, time: world.time + dt, ball }, events };
+  const thrown = events.flatMap((e) => spawnImpactDust(e.speed, rng));
+  const dust = [...stepDust(world.dust, dt), ...thrown];
+  return { world: { ...world, time: world.time + dt, ball, dust }, events };
 };
 
-export const clickWorld = (world: World): WorldStep => {
+export const clickWorld = (world: World, rng: Rng): WorldStep => {
   // Every click counts towards getting dizzy, even one the ball ignores
   const clicked = {
     ...world,
@@ -58,7 +72,10 @@ export const clickWorld = (world: World): WorldStep => {
   };
   const ball = jumpBall(world.ball);
   if (ball.v <= world.ball.v) return { world: clicked, events: [] };
-  return { world: { ...clicked, ball }, events: [{ type: "launch" }] };
+  return {
+    world: { ...clicked, ball, dust: [...world.dust, ...spawnLaunchDust(rng)] },
+    events: [{ type: "launch" }],
+  };
 };
 
 export const getView = (world: World): WorldView => ({
@@ -66,4 +83,5 @@ export const getView = (world: World): WorldView => ({
   pitch: getBallPitch(world.ball),
   mode: getMode(world.ball),
   expression: getExpression(world.ball, world.expression, world.time),
+  dust: getDustView(world.dust),
 });
