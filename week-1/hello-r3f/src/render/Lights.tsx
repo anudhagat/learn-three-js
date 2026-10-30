@@ -1,12 +1,13 @@
 import { sunLightPosition } from "./skyLayout";
 
 // The sun sits low behind the scene and casts the shadows, so they fall towards the
-// camera. The ball and candy would be backlit, so a gentle fill light from the
-// front, which casts no shadows, keeps their faces readable.
+// camera. The ball and candy would be backlit, so a soft fill keeps their faces
+// readable. It is a hemisphere light, not a second directional light, because any
+// directional light also puts its own shiny highlight on the glossy candy.
 export const Lights = () => (
   <>
     <ambientLight intensity={0.3} color="#cdbdff" />
-    <directionalLight position={[-6, 5, 10]} intensity={1.1} color="#ffdccb" />
+    <hemisphereLight args={["#ffd9c4", "#8f78b8", 0.65]} />
     <directionalLight
       position={sunLightPosition(40)}
       intensity={3.4}
