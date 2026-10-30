@@ -53,18 +53,16 @@ State is plain immutable objects, changed by pure functions. Anything random tak
 an injected `Rng` (see `rng.ts`), so tests can use a seeded one.
 
 - `world.ts` is the one entry point the renderer uses: `createWorld`, `stepWorld`,
-  `clickWorld` and `getView`. It combines everything below and returns events
-  (`impact`, `launch`) so other things can react without inspecting state.
+  `clickWorld` and `getView`. It returns events (`impact`, `launch`) so other things
+  can react without inspecting state.
 - `ball.ts` is the dynamics: exact motion under gravity, the exact moment of impact
-  inside a frame, bounce, rest, and `getMode` (resting, rising or falling, worked out
-  from the state rather than stored).
-- `deformation.ts` turns ball state into squash, stretch and tilt. It only reads the
-  ball and never changes it. `intensity.ts` holds the speed curve it shares with the
-  dust.
+  inside a frame, bounce, rest, and `getMode` (worked out from the state, not stored).
+- `deformation.ts` turns ball state into squash, stretch and tilt, and shares the speed
+  curve in `intensity.ts` with the dust.
 - `expression.ts` picks the face (happy, sleepy or dizzy) and how drowsy the ball is.
 - `dust.ts` and `shadow.ts` are the sparkles and the contact shadow.
-- `propMotion.ts` is the click reactions for the candy. Each is a function of the
-  seconds since the click, and is exactly at rest again once it finishes.
+- `propMotion.ts` is the candy's click reactions. Each is a function of the seconds
+  since the click, and is exactly at rest again once it finishes.
 - `config.ts` has the tuning numbers: gravity, bounciness, sleep delay, and so on.
 
 ### `render/`: the picture
@@ -74,25 +72,21 @@ an injected `Rng` (see `rng.ts`), so tests can use a seeded one.
 - `CandyScene.tsx` builds the ground, sky, fog and props. `CandyProps.tsx` has the six
   kinds of candy and their click reactions, using `useReaction.ts`.
 - `Sky.tsx` is the dusk: a banded dome, sun, stars, drifting clouds and hills.
-  `SkyReflections.tsx` captures that sky once so the glossy candy can reflect it.
-- `GrassLawn.tsx` draws the 3D grass blades as one instanced mesh. `grassBlades.ts`
-  decides where they grow: only in the part of the ground the camera can see, fading
-  out with distance, with the wind switched off for far blades.
+  `SkyReflections.tsx` captures it once so the glossy candy can reflect it.
+- `GrassLawn.tsx` draws the grass blades as one instanced mesh. `grassBlades.ts` decides
+  where they grow: only where the camera can see, fading out with distance, with the
+  wind off for far blades.
 - `groundCurve.ts` curves the ground into a rounded horizon, and props follow it.
-- `faceTexture.ts` and `faceLook.ts` draw the faces, including the frames of the
-  face nodding off. `candyTextures.ts` draws the sky bands, grass and its normal map.
-- `candyLayout.ts` and `camera.ts` hold where the props are and where the camera is.
-  Tests check that props stay in view and out of the ball's way.
+- `faceTexture.ts` and `faceLook.ts` draw the faces. `candyTextures.ts` draws the sky
+  bands, grass and its normal map.
+- `candyLayout.ts` and `camera.ts` hold where the props and camera are. Tests check
+  that props stay in view and out of the ball's way.
 
 ## Tests
 
-Tests sit next to the code they cover (`ball.test.ts` beside `ball.ts`), and run in
-plain Node. They cover the dynamics, the sparkles, the face logic, the prop motion,
-the grass layout, the ground curve, noise and normal-map maths, and the layouts.
-
-Changes so far were made test-first: write the failing test, watch it fail, then make
-it pass. Things that only exist on screen (shaders, canvas drawing, lighting) can't be
-unit tested here, and were checked by eye.
+Tests sit next to the code they cover (`ball.test.ts` beside `ball.ts`) and run in
+plain Node. Changes were made test-first. Things that only exist on screen (shaders,
+canvas drawing, lighting) can't be unit tested here, and were checked by eye.
 
 ## Changing the look
 
@@ -104,11 +98,53 @@ unit tested here, and were checked by eye.
 - **How round the horizon is:** `GROUND_RADIUS` in `render/groundCurve.ts`.
 - **How much grass:** `TUFT_COUNT` in `render/GrassLawn.tsx`, and the reach in
   `render/grassBlades.ts`.
+- **The camera:** `render/camera.ts`. The grass only grows where the default camera
+  looks, so if you move the camera, check `isInView` in `render/grassBlades.ts` too.
+- **Not done yet:** sound, and bloom on the sparkles.
 
-## Things to know
+## Performance
 
-- The grass is the heaviest part of the scene. I haven't measured its frame rate; if
-  it stutters on a weak GPU, lower `TUFT_COUNT`.
-- The grass is only grown where the default camera looks. If you move the camera,
-  update `render/camera.ts` and check `isInView` in `render/grassBlades.ts`.
-- Not done: a frame-rate readout, adaptive quality, sound, and bloom on the sparkles.
+The scene costs mostly pixels, and a Retina screen has four times as many as a normal
+one. So the canvas is capped at a pixel ratio of 1.5 (`MAX_PIXEL_RATIO` in `App.tsx`),
+which looks almost as sharp as full resolution. Raise it for a crisper picture, or
+lower it (1.25 is a little softer on thin lines) for a smoother one.
+
+Measured in Chrome on an Intel Iris Pro, an old integrated GPU and so a worst case,
+with the frame-rate cap off and GPU time from WebGL timer queries:
+
+| Simulated Retina screen | GPU time per frame | Frame rate |
+| --- | --- | --- |
+| Before: ratio up to 2 | 25 to 34 ms | 31 to 45 fps |
+| After: ratio up to 1.5 | 16 to 20 ms | 55 to 65 fps |
+
+Normal screens are unchanged. Times crept up during each run as the GPU warmed, so
+treat these as ranges. A steady 60 fps needs under 16.7 ms, so this GPU is close but
+not quite there.
+
+Other findings, from 122 draw calls and about 320k triangles per frame:
+
+- **The grass is not the problem.** It is one draw of about 70k triangles and costs
+  about 2 ms. Halving `TUFT_COUNT` would save about 1 ms, not worth a thinner lawn.
+- **The shadows are cheap**, under 0.5 ms.
+- **Clicks are cheap**, under 1 ms each on average. There were one-off frame spikes
+  after clicking the macaron (about 26 ms, seen twice) and the donut (63 ms, once). The
+  cause is not known.
+- **The frame loop allocates about 5 MB a second**, cleared by the browser every second
+  or so. Where it comes from has not been profiled.
+
+Ideas not yet done:
+
+1. Adaptive quality: drei's `PerformanceMonitor` can lower `dpr` only when the frame
+   rate drops, so strong GPUs keep full resolution. A frame-rate readout (drei's
+   `Stats`) would help while tuning it.
+2. Find the rest of the pixel cost. With no grass and no shadows a frame is still 6.9 ms
+   at ratio 1. The glossy `meshPhysicalMaterial` (clear coat) on the candy is the first
+   suspect; try `meshStandardMaterial` on one kind and compare.
+3. Profile the frame loop for the allocations (a new world object and dust arrays every
+   frame are likely) and the macaron and donut spikes.
+
+To measure again, build the app, serve it with `npm run preview` and drive it with
+Chrome through puppeteer-core, with the frame-rate cap off (`--disable-frame-rate-limit
+--disable-gpu-vsync`). Time the GPU with the `EXT_disjoint_timer_query_webgl2`
+extension, and skip the grass or shadow draws to see what each costs. Don't take
+screenshots while the cap is off; they hang. The scripts are not checked in.
