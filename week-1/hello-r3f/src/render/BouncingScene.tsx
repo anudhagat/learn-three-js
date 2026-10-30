@@ -8,7 +8,7 @@ import { createFaceTextures } from "./faceTexture";
 import { createStarTexture } from "./starTexture";
 
 const MAX_DUST_INSTANCES = 256;
-const STAR_SCALE = 4; // Star sprite size relative to a particle's size
+const STAR_SCALE = 3; // Star sprite size relative to a particle's size
 const STAR_COLOR = new THREE.Color("#ffe27a");
 
 // Owns the simulation: steps the world each frame and applies the result to the
