@@ -5,7 +5,7 @@ import {
   INITIAL_POSITION_Y,
   RESTITUTION,
 } from "./config";
-import { createBall, jumpBall, stepBall, type BallState } from "./ball";
+import { createBall, getMode, jumpBall, stepBall, type BallState } from "./ball";
 import { simulate } from "./testing";
 
 describe("bounce physics", () => {
@@ -90,5 +90,29 @@ describe("jumping", () => {
   it("still jumps while the ball is falling", () => {
     const falling = jumpBall(createBall(BALL_CENTER_LIMIT + 0.5, -3));
     expect(falling.v).toBeGreaterThan(0);
+  });
+});
+
+describe("ball mode", () => {
+  it("is resting once the ball has settled", () => {
+    const resting = simulate(createBall(), 30, 1 / 60);
+    expect(getMode(resting)).toBe("resting");
+  });
+
+  it("is rising while moving up", () => {
+    expect(getMode(createBall(0, 3))).toBe("rising");
+  });
+
+  it("is falling while moving down", () => {
+    expect(getMode(createBall(0, -3))).toBe("falling");
+  });
+
+  it("counts the apex as falling", () => {
+    expect(getMode(createBall(0, 0))).toBe("falling");
+  });
+
+  it("does not report resting for a ball that is still bouncing", () => {
+    const bouncing = simulate(createBall(), 2, 1 / 60);
+    expect(getMode(bouncing)).not.toBe("resting");
   });
 });

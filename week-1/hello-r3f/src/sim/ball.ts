@@ -24,16 +24,28 @@ export const createBall = (y = INITIAL_POSITION_Y, v = 0.02): BallState => ({
   impactSpeed: 0,
 });
 
-// Launch the ball upward so it peaks at its starting height. Ignored while the
-// ball is already rising, so repeated clicks can't keep boosting it.
+export type BallMode = "resting" | "rising" | "falling";
+
+// Derived from the state rather than stored, so it can never drift out of sync
+export const getMode = (ball: BallState): BallMode =>
+  ball.atRest ? "resting" : ball.v > 0 ? "rising" : "falling";
+
+// Clicks are ignored while the ball is rising, so repeated clicks can't keep boosting it
+const CLICK_JUMPS: Record<BallMode, boolean> = {
+  resting: true,
+  rising: false,
+  falling: true,
+};
+
+// Launch the ball upward so it peaks at its starting height
 export const jumpBall = (state: BallState): BallState =>
-  !state.atRest && state.v > 0
-    ? state
-    : {
+  CLICK_JUMPS[getMode(state)]
+    ? {
         ...state,
         atRest: false,
         v: Math.sqrt(2 * -GRAVITY * Math.max(INITIAL_POSITION_Y - state.y, 0)),
-      };
+      }
+    : state;
 
 // Exact motion under constant gravity after `t` seconds
 const fall = (y: number, v: number, t: number) => ({
