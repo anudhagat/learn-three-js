@@ -7,7 +7,7 @@ import { CANDY_PROPS } from "./candyLayout";
 import { scatterTufts } from "./grassBlades";
 import { groundHeight } from "./groundCurve";
 
-const TUFT_COUNT = 7000;
+const TUFT_COUNT = 14000;
 const BLADE_SEGMENTS = 4;
 const DARK_GREEN = new THREE.Color("#1f6b3a");
 const LIGHT_GREEN = new THREE.Color("#86d65c");
