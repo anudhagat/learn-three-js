@@ -1,17 +1,23 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BALL_RADIUS, FLOOR_POSITION_Y, INITIAL_POSITION_Y } from "./sim/config";
+import { createFaceTextures } from "./render/faceTexture";
 import { clickWorld, createWorld, getView, stepWorld } from "./sim/world";
 
 const BouncingBall = () => {
   const meshRef = useRef<THREE.Mesh>(null);
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
   const worldRef = useRef(createWorld());
+  const faces = useMemo(() => createFaceTextures(), []);
 
   useFrame((_, deltaTime) => {
     if (!meshRef.current) return;
     worldRef.current = stepWorld(worldRef.current, deltaTime).world;
-    const { positionY, scale } = getView(worldRef.current);
+    const { positionY, scale, expression } = getView(worldRef.current);
+    if (materialRef.current && materialRef.current.map !== faces[expression]) {
+      materialRef.current.map = faces[expression];
+    }
     meshRef.current.position.y = positionY;
     meshRef.current.scale.set(...scale);
   });
@@ -27,7 +33,7 @@ const BouncingBall = () => {
       onPointerOut={() => (document.body.style.cursor = "auto")}
     >
       <sphereGeometry args={[BALL_RADIUS, 32, 32]} />
-      <meshStandardMaterial color="#a5b2df" />
+      <meshStandardMaterial ref={materialRef} map={faces.happy} />
     </mesh>
   );
 };
