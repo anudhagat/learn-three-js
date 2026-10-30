@@ -1,6 +1,6 @@
-export const INITIAL_POSITION_Y = 0; // Initial position of the ball
+export const INITIAL_POSITION_Y = 0.5; // Initial position of the ball
 export const FLOOR_POSITION_Y = -2; // Floor position of the ball
-export const BALL_RADIUS = 0.5; // Radius of the ball
+export const BALL_RADIUS = 1; // Radius of the ball
 export const BALL_CENTER_LIMIT = FLOOR_POSITION_Y + BALL_RADIUS; // Limit for the ball's center position
 export const GRAVITY = -9.8;
 export const RESTITUTION = 0.8; // Coefficient of restitution (bounciness)
