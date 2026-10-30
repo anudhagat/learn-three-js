@@ -60,8 +60,8 @@ const createGrassMaterial = (time: { value: number }) => {
           vec2 spot = instanceMatrix[ 3 ].xz;
           float sway = sin( uTime * 1.6 + spot.x * 0.35 + spot.y * 0.25 )
                      + 0.4 * sin( uTime * 3.2 + spot.x * 1.1 );
-          mvPosition.x += sway * 0.22 * bladeHeight * bladeTip;
-          mvPosition.z += sway * 0.09 * bladeHeight * bladeTip;
+          mvPosition.x += sway * 0.06 * bladeHeight * bladeTip;
+          mvPosition.z += sway * 0.025 * bladeHeight * bladeTip;
         #endif
         mvPosition = modelViewMatrix * mvPosition;
         gl_Position = projectionMatrix * mvPosition;
