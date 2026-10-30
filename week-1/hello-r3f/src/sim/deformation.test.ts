@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BALL_CENTER_LIMIT, BALL_RADIUS, FLOOR_POSITION_Y } from "./config";
-import { createBall, stepBall } from "./ball";
+import { createBall, stepBall, stepBallWithEvents } from "./ball";
 import { getBallVisual } from "./deformation";
 import { simulate } from "./testing";
 
@@ -70,5 +70,30 @@ describe("squash and stretch", () => {
       positionY: BALL_CENTER_LIMIT,
       scale: [1, 1, 1],
     });
+  });
+});
+
+describe("squash across the opening bounces", () => {
+  // Lowest y scale reached after each impact, until the next one
+  const squashPerBounce = (bounces: number) => {
+    let ball = createBall();
+    const minScales: number[] = [];
+    for (let i = 0; i < 60 * 30 && minScales.length <= bounces; i++) {
+      const step = stepBallWithEvents(ball, 1 / 120);
+      ball = step.ball;
+      if (step.events.length > 0) minScales.push(Infinity);
+      if (minScales.length > 0) {
+        const last = minScales.length - 1;
+        minScales[last] = Math.min(minScales[last], getBallVisual(ball).scale[1]);
+      }
+    }
+    return minScales;
+  };
+
+  it("squashes each bounce less than the one before", () => {
+    const [first, second, third] = squashPerBounce(3);
+    // A clear margin, so clamped (identical) squash can't pass on rounding noise
+    expect(second - first).toBeGreaterThan(0.03);
+    expect(third - second).toBeGreaterThan(0.03);
   });
 });

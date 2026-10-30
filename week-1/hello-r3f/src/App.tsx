@@ -48,7 +48,7 @@ const Plane = () => {
 
 export default function App() {
   return (
-    <Canvas camera={{ position: [0, 2, 6], fov: 70 }}>
+    <Canvas camera={{ position: [0, 1.5, 8], fov: 70 }}>
       <color attach="background" args={["#e99949"]} />
       <ambientLight intensity={0.5} />
       <directionalLight position={[3, 5, 2]} intensity={1.8} color="#e8e7ad" />
