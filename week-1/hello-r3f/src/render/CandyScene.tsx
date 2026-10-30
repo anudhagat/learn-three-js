@@ -4,7 +4,7 @@ import { FLOOR_POSITION_Y } from "../sim/config";
 import { CANDY_PROPS, FLOOR_SIZE, type CandyProp } from "./candyLayout";
 import {
   HORIZON_COLOR,
-  createCheckerTexture,
+  createGrassTexture,
   createSkyTexture,
   createSwirlTexture,
 } from "./candyTextures";
@@ -52,7 +52,7 @@ const Gumdrop = ({ position: [x, z], size, color }: CandyProp) => (
 
 export const CandyScene = () => {
   const sky = useMemo(() => createSkyTexture(), []);
-  const checker = useMemo(() => createCheckerTexture(FLOOR_SIZE / 3), []);
+  const grass = useMemo(() => createGrassTexture(FLOOR_SIZE / 8), []);
   const ground = useMemo(() => createCurvedGroundGeometry(FLOOR_SIZE, 160), []);
 
   return (
@@ -61,7 +61,7 @@ export const CandyScene = () => {
       {/* Fades the far floor into the horizon colour */}
       <fog attach="fog" args={[HORIZON_COLOR, 18, 55]} />
       <mesh geometry={ground} position={[0, FLOOR_POSITION_Y, 0]}>
-        <meshStandardMaterial map={checker} roughness={0.2} metalness={0.05} />
+        <meshStandardMaterial map={grass} roughness={0.85} />
       </mesh>
       {CANDY_PROPS.map((prop) =>
         prop.kind === "lollipop" ? (
