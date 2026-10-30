@@ -108,7 +108,7 @@ const cloudMaterial = (sunDirection: THREE.Vector3) =>
     `,
   });
 
-const Clouds = () => {
+const Clouds = ({ drift }: { drift: boolean }) => {
   const clouds = useMemo(() => scatterClouds(createRng(11), 16), []);
   const puffCount = clouds.reduce((sum, cloud) => sum + cloud.puffs.length, 0);
   const meshRef = useRef<THREE.InstancedMesh>(null);
@@ -159,7 +159,9 @@ const Clouds = () => {
     place(0);
   });
 
-  useFrame(({ clock }) => place(clock.elapsedTime));
+  useFrame(({ clock }) => {
+    if (drift) place(clock.elapsedTime);
+  });
 
   return (
     <instancedMesh
@@ -228,8 +230,10 @@ const Hills = () => {
   );
 };
 
-// A cartoon dusk: banded sky, low sun, stars, puffy clouds and rolling hills
-export const Sky = () => {
+// A cartoon dusk: banded sky, low sun, stars, puffy clouds and rolling hills.
+// `drift` lets the clouds move; turn it off for a static copy, such as the one
+// captured for reflections.
+export const Sky = ({ drift = true }: { drift?: boolean }) => {
   const dome = useMemo(() => createSkyTexture(), []);
   const sun = useMemo(() => createSunTexture(), []);
 
@@ -243,7 +247,7 @@ export const Sky = () => {
         <spriteMaterial map={sun} depthWrite={false} fog={false} toneMapped={false} />
       </sprite>
       <Stars />
-      <Clouds />
+      <Clouds drift={drift} />
       <Hills />
     </>
   );
