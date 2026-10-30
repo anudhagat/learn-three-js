@@ -10,3 +10,7 @@ export const SQUASH_DURATION = 0.1; // Seconds the ball stays squashed on impact
 export const REFERENCE_SPEED = 6; // Speed at which squash and stretch reach their maximum
 export const MAX_SQUASH = 0.4;
 export const MAX_STRETCH = 0.25;
+export const WIDE_EYED_SPEED = 4; // Falling faster than this makes the ball wide-eyed
+export const DIZZY_CLICKS = 5; // Clicks needed within DIZZY_WINDOW to make the ball dizzy
+export const DIZZY_WINDOW = 3; // Seconds
+export const DIZZY_DURATION = 2; // Seconds the ball stays dizzy
