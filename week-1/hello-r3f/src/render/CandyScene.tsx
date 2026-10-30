@@ -7,6 +7,7 @@ import {
   createGrassTexture,
   createSwirlTexture,
 } from "./candyTextures";
+import { GrassLawn } from "./GrassLawn";
 import { Sky } from "./Sky";
 import { createCurvedGroundGeometry, groundHeight, surfaceNormal } from "./groundCurve";
 
@@ -62,6 +63,7 @@ export const CandyScene = () => {
       <mesh geometry={ground} position={[0, FLOOR_POSITION_Y, 0]} receiveShadow>
         <meshStandardMaterial map={grass} roughness={0.85} />
       </mesh>
+      <GrassLawn />
       {CANDY_PROPS.map((prop) =>
         prop.kind === "lollipop" ? (
           <Lollipop key={prop.position.join()} {...prop} />
