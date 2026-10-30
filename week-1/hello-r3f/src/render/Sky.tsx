@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { createRng } from "../sim/rng";
 import { HORIZON_COLOR, createSkyTexture, createSunTexture } from "./candyTextures";
 import {
+  CLOUD_PUFF_SQUASH,
   SUN_AZIMUTH,
   SUN_ELEVATION,
   hillProfile,
@@ -14,7 +15,7 @@ import { createStarTexture } from "./starTexture";
 
 const DOME_RADIUS = 400;
 const CLOUD_DISTANCE = 300;
-const CLOUD_SCALE = 15; // World size of a cloud of size 1
+const CLOUD_SCALE = 24; // World size of a cloud of size 1
 const SUN_DISTANCE = 350;
 const CLOUD_LIGHT = new THREE.Color("#ffd9ea");
 const CLOUD_SHADE = new THREE.Color("#b2569f");
@@ -57,7 +58,7 @@ const createHillGeometry = (profile: number[], distance: number, ridgeColor: str
 };
 
 const Clouds = () => {
-  const clouds = useMemo(() => scatterClouds(createRng(11), 14), []);
+  const clouds = useMemo(() => scatterClouds(createRng(11), 16), []);
   const puffCount = clouds.reduce((sum, cloud) => sum + cloud.puffs.length, 0);
   const meshRef = useRef<THREE.InstancedMesh>(null);
 
@@ -77,11 +78,11 @@ const Clouds = () => {
           cy + puff.dy * unit,
           cz + Math.sin(cloud.azimuth) * puff.dx * unit,
         );
-        dummy.scale.setScalar(puff.radius * unit);
+        dummy.scale.set(puff.radius * unit, puff.radius * CLOUD_PUFF_SQUASH * unit, puff.radius * unit);
         dummy.updateMatrix();
         mesh.setMatrixAt(i, dummy.matrix);
         // Lit tops, shaded undersides
-        mesh.setColorAt(i, color.lerpColors(CLOUD_SHADE, CLOUD_LIGHT, Math.min(puff.dy * 3 + 0.3, 1)));
+        mesh.setColorAt(i, color.lerpColors(CLOUD_SHADE, CLOUD_LIGHT, Math.min(Math.max((puff.dy - 0.25) / 0.7, 0), 1)));
         i++;
       }
     }

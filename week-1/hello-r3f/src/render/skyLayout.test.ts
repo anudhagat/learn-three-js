@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createRng } from "../sim/rng";
 import {
+  CLOUD_PUFF_SQUASH,
   SUN_AZIMUTH,
   SUN_ELEVATION,
   hillProfile,
@@ -74,6 +75,65 @@ describe("clouds", () => {
 
   it("makes no clouds when asked for none", () => {
     expect(scatterClouds(createRng(1), 0)).toEqual([]);
+  });
+});
+
+describe("cloud shape", () => {
+  const clouds = scatterClouds(createRng(21), 40);
+  const bottom = (p: { dy: number; radius: number }) => p.dy - p.radius * CLOUD_PUFF_SQUASH;
+  const top = (p: { dy: number; radius: number }) => p.dy + p.radius * CLOUD_PUFF_SQUASH;
+
+  it("is a dome, not a flat row: tall relative to its width", () => {
+    for (const { puffs } of clouds) {
+      const height = Math.max(...puffs.map(top)) - Math.min(...puffs.map(bottom));
+      const width =
+        Math.max(...puffs.map((p) => p.dx + p.radius)) -
+        Math.min(...puffs.map((p) => p.dx - p.radius));
+      expect(height / width).toBeGreaterThanOrEqual(0.3);
+      expect(height / width).toBeLessThanOrEqual(0.9);
+    }
+  });
+
+  it("has a flat base", () => {
+    for (const { puffs } of clouds) {
+      const lowest = Math.min(...puffs.map(bottom));
+      expect(puffs.filter((p) => bottom(p) - lowest < 0.05).length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("is one connected blob: every puff overlaps another", () => {
+    for (const { puffs } of clouds) {
+      for (const a of puffs) {
+        const touches = puffs.some(
+          (b) => b !== a && Math.hypot(a.dx - b.dx, a.dy - b.dy) < a.radius + b.radius,
+        );
+        expect(touches).toBe(true);
+      }
+    }
+  });
+
+  it("has its biggest puff near the middle", () => {
+    for (const { puffs } of clouds) {
+      const biggest = puffs.reduce((a, b) => (b.radius > a.radius ? b : a));
+      const middle =
+        (Math.max(...puffs.map((p) => p.dx)) + Math.min(...puffs.map((p) => p.dx))) / 2;
+      expect(Math.abs(biggest.dx - middle)).toBeLessThan(0.6);
+    }
+  });
+
+  it("mixes big and small puffs", () => {
+    for (const { puffs } of clouds) {
+      const radii = puffs.map((p) => p.radius);
+      expect(Math.max(...radii) / Math.min(...radii)).toBeGreaterThanOrEqual(1.4);
+    }
+  });
+
+  it("piles smaller puffs on top of the base", () => {
+    for (const { puffs } of clouds) {
+      const lowest = Math.min(...puffs.map(bottom));
+      const raised = puffs.filter((p) => bottom(p) - lowest > 0.2);
+      expect(raised.length).toBeGreaterThanOrEqual(2);
+    }
   });
 });
 

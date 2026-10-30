@@ -35,18 +35,31 @@ const MAX_CLOUD_ELEVATION = 0.4;
 const MAX_CLOUD_AZIMUTH = 1.35;
 const SUN_CLEARANCE = 0.32; // Radians of sky kept clear around the sun
 
+// Puffs are squashed a little vertically, which flattens the base of the cloud
+export const CLOUD_PUFF_SQUASH = 0.8;
+
+// A cumulus: a flat row of big puffs, biggest in the middle, with a few smaller
+// puffs piled on top. Offsets are in cloud sizes; the base sits at dy = 0.
 const makePuffs = (rng: Rng): Puff[] => {
-  const count = 4 + Math.floor(rng() * 5);
-  return Array.from({ length: count }, (_, i) => {
-    const t = count === 1 ? 0 : i / (count - 1) - 0.5; // -0.5 to 0.5 along the cloud
-    // Fuller in the middle so the cloud reads as a dome with a flat base
-    const fullness = 1 - Math.abs(t) * 0.9;
+  const baseCount = 3 + Math.floor(rng() * 3);
+  const base = Array.from({ length: baseCount }, (_, i): Puff => {
+    const t = i / (baseCount - 1) - 0.5; // -0.5 to 0.5 along the base
+    const fullness = 1 - Math.abs(t) * 1.1;
+    const radius = 0.35 + 0.35 * fullness + rng() * 0.06;
     return {
-      dx: t * 2.2 + (rng() - 0.5) * 0.2,
-      dy: fullness * 0.25 * rng(),
-      radius: (0.45 + 0.5 * rng()) * fullness + 0.2,
+      dx: t * 2 + (rng() - 0.5) * 0.1,
+      dy: radius * CLOUD_PUFF_SQUASH, // Bottom edge exactly on the base line
+      radius,
     };
   });
+
+  const topCount = 2 + Math.floor(rng() * 2);
+  const top = Array.from({ length: topCount }, (): Puff => ({
+    dx: (rng() - 0.5) * 1,
+    dy: 0.75 + rng() * 0.2,
+    radius: 0.25 + rng() * 0.2,
+  }));
+  return [...base, ...top];
 };
 
 export const scatterClouds = (rng: Rng, count: number): Cloud[] => {
