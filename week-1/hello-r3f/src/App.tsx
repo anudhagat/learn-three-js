@@ -1,43 +1,7 @@
-import { Canvas, useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
-import * as THREE from "three";
-import { BALL_RADIUS, FLOOR_POSITION_Y, INITIAL_POSITION_Y } from "./sim/config";
-import { createFaceTextures } from "./render/faceTexture";
-import { clickWorld, createWorld, getView, stepWorld } from "./sim/world";
+import { Canvas } from "@react-three/fiber";
+import { BouncingScene } from "./render/BouncingScene";
+import { FLOOR_POSITION_Y } from "./sim/config";
 
-const BouncingBall = () => {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
-  const worldRef = useRef(createWorld());
-  const faces = useMemo(() => createFaceTextures(), []);
-
-  useFrame((_, deltaTime) => {
-    if (!meshRef.current) return;
-    worldRef.current = stepWorld(worldRef.current, deltaTime, Math.random).world;
-    const { positionY, scale, pitch, expression } = getView(worldRef.current);
-    if (materialRef.current && materialRef.current.map !== faces[expression]) {
-      materialRef.current.map = faces[expression];
-    }
-    meshRef.current.position.y = positionY;
-    meshRef.current.scale.set(...scale);
-    meshRef.current.rotation.x = -pitch; // Negative tilts the face up
-  });
-
-  return (
-    <mesh
-      ref={meshRef}
-      position={[0, INITIAL_POSITION_Y, 0]}
-      onClick={() => {
-        worldRef.current = clickWorld(worldRef.current, Math.random).world;
-      }}
-      onPointerOver={() => (document.body.style.cursor = "pointer")}
-      onPointerOut={() => (document.body.style.cursor = "auto")}
-    >
-      <sphereGeometry args={[BALL_RADIUS, 32, 32]} />
-      <meshStandardMaterial ref={materialRef} map={faces.happy} />
-    </mesh>
-  );
-};
 const Plane = () => {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, FLOOR_POSITION_Y, 0]}>
@@ -53,7 +17,7 @@ export default function App() {
       <color attach="background" args={["#e99949"]} />
       <ambientLight intensity={0.5} />
       <directionalLight position={[3, 5, 2]} intensity={1.8} color="#e8e7ad" />
-      <BouncingBall />
+      <BouncingScene />
       <Plane />
     </Canvas>
   );
