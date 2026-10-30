@@ -5,7 +5,14 @@ import {
   INITIAL_POSITION_Y,
   RESTITUTION,
 } from "./config";
-import { createBall, getMode, jumpBall, stepBall, type BallState } from "./ball";
+import {
+  createBall,
+  getMode,
+  jumpBall,
+  stepBall,
+  stepBallWithEvents,
+  type BallState,
+} from "./ball";
 import { simulate } from "./testing";
 
 describe("bounce physics", () => {
@@ -114,5 +121,47 @@ describe("ball mode", () => {
   it("does not report resting for a ball that is still bouncing", () => {
     const bouncing = simulate(createBall(), 2, 1 / 60);
     expect(getMode(bouncing)).not.toBe("resting");
+  });
+});
+
+describe("ball events", () => {
+  it("reports no events in free flight", () => {
+    const { events } = stepBallWithEvents(createBall(0, 0), 1 / 60);
+    expect(events).toEqual([]);
+  });
+
+  it("reports an impact with its speed when the ball lands", () => {
+    // Dropped from 2 above the floor, the ball lands at √(2·g·h)
+    let ball = createBall(BALL_CENTER_LIMIT + 2, 0);
+    const impacts: number[] = [];
+    for (let i = 0; i < 100 && impacts.length === 0; i++) {
+      const step = stepBallWithEvents(ball, 1 / 60);
+      ball = step.ball;
+      for (const e of step.events) impacts.push(e.speed);
+    }
+    expect(impacts).toHaveLength(1);
+    expect(impacts[0]).toBeCloseTo(Math.sqrt(2 * -GRAVITY * 2), 3);
+  });
+
+  it("reports the final settling impact too", () => {
+    let ball = createBall();
+    let impacts = 0;
+    for (let i = 0; i < 60 * 30; i++) {
+      const step = stepBallWithEvents(ball, 1 / 60);
+      ball = step.ball;
+      impacts += step.events.length;
+    }
+    expect(ball.atRest).toBe(true);
+    expect(impacts).toBeGreaterThan(5);
+  });
+
+  it("reports nothing for a ball at rest", () => {
+    const resting = simulate(createBall(), 30, 1 / 60);
+    expect(stepBallWithEvents(resting, 1 / 60).events).toEqual([]);
+  });
+
+  it("matches stepBall for the ball state", () => {
+    const ball = createBall(BALL_CENTER_LIMIT + 0.01, -5);
+    expect(stepBallWithEvents(ball, 1 / 60).ball).toEqual(stepBall(ball, 1 / 60));
   });
 });

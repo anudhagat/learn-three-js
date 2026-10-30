@@ -60,13 +60,23 @@ const advanceSquash = (state: BallState, dt: number): BallState => {
   return { ...state, squashTime: squashTime >= SQUASH_DURATION ? -1 : squashTime };
 };
 
-export const stepBall = (state: BallState, rawDelta: number): BallState => {
-  if (state.atRest) return state;
+export interface ImpactEvent {
+  type: "impact";
+  speed: number; // Speed at the moment the ball hit the floor
+}
+
+export interface BallStep {
+  ball: BallState;
+  events: ImpactEvent[];
+}
+
+export const stepBallWithEvents = (state: BallState, rawDelta: number): BallStep => {
+  if (state.atRest) return { ball: state, events: [] };
 
   const dt = Math.min(rawDelta, MAX_DELTA);
   const next = fall(state.y, state.v, dt);
   if (next.y > BALL_CENTER_LIMIT) {
-    return advanceSquash({ ...state, ...next }, dt);
+    return { ball: advanceSquash({ ...state, ...next }, dt), events: [] };
   }
 
   // Find when in this frame the ball reaches the floor:
@@ -80,19 +90,29 @@ export const stepBall = (state: BallState, rawDelta: number): BallState => {
   );
   const impactSpeed = Math.abs(fall(state.y, state.v, tHit).v);
   const bounceV = impactSpeed * RESTITUTION;
+  const events: ImpactEvent[] = [{ type: "impact", speed: impactSpeed }];
 
   if (bounceV < REST_VELOCITY) {
-    return { ...state, y: BALL_CENTER_LIMIT, v: 0, atRest: true, squashTime: -1 };
+    return {
+      ball: { ...state, y: BALL_CENTER_LIMIT, v: 0, atRest: true, squashTime: -1 },
+      events,
+    };
   }
 
   // Spend the rest of the frame on the way back up
-  return advanceSquash(
-    {
-      ...state,
-      ...fall(BALL_CENTER_LIMIT, bounceV, dt - tHit),
-      squashTime: 0,
-      impactSpeed,
-    },
-    dt - tHit,
-  );
+  return {
+    ball: advanceSquash(
+      {
+        ...state,
+        ...fall(BALL_CENTER_LIMIT, bounceV, dt - tHit),
+        squashTime: 0,
+        impactSpeed,
+      },
+      dt - tHit,
+    ),
+    events,
+  };
 };
+
+export const stepBall = (state: BallState, rawDelta: number): BallState =>
+  stepBallWithEvents(state, rawDelta).ball;

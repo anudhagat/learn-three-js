@@ -2,17 +2,16 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
 import { BALL_RADIUS, FLOOR_POSITION_Y, INITIAL_POSITION_Y } from "./sim/config";
-import { createBall, jumpBall, stepBall } from "./sim/ball";
-import { getBallVisual } from "./sim/deformation";
+import { clickWorld, createWorld, getView, stepWorld } from "./sim/world";
 
 const BouncingBall = () => {
   const meshRef = useRef<THREE.Mesh>(null);
-  const ballRef = useRef(createBall());
+  const worldRef = useRef(createWorld());
 
   useFrame((_, deltaTime) => {
     if (!meshRef.current) return;
-    ballRef.current = stepBall(ballRef.current, deltaTime);
-    const { positionY, scale } = getBallVisual(ballRef.current);
+    worldRef.current = stepWorld(worldRef.current, deltaTime).world;
+    const { positionY, scale } = getView(worldRef.current);
     meshRef.current.position.y = positionY;
     meshRef.current.scale.set(...scale);
   });
@@ -22,7 +21,7 @@ const BouncingBall = () => {
       ref={meshRef}
       position={[0, INITIAL_POSITION_Y, 0]}
       onClick={() => {
-        ballRef.current = jumpBall(ballRef.current); // Jump back up to the starting height
+        worldRef.current = clickWorld(worldRef.current).world;
       }}
       onPointerOver={() => (document.body.style.cursor = "pointer")}
       onPointerOut={() => (document.body.style.cursor = "auto")}
