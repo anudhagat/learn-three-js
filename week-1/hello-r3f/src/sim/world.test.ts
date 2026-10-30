@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { BALL_CENTER_LIMIT, DIZZY_CLICKS, MAX_TILT } from "./config";
+import {
+  BALL_CENTER_LIMIT,
+  BALL_RADIUS,
+  DIZZY_CLICKS,
+  FLOOR_POSITION_Y,
+  MAX_TILT,
+} from "./config";
 import { createBall } from "./ball";
 import { getBallVisual } from "./deformation";
 import { createRng } from "./rng";
@@ -131,7 +137,7 @@ describe("dust in the world", () => {
   });
 
   it("shows the stars in the view", () => {
-    const world = { ...createWorld(), dust: spawnLaunchDust(rng()) };
+    const world = { ...createWorld(), dust: spawnLaunchDust(rng(), FLOOR_POSITION_Y) };
     expect(getView(world).dust).toHaveLength(world.dust.length);
   });
 
@@ -151,6 +157,29 @@ describe("dust in the world", () => {
     const resting = run(createWorld(), 30, 1 / 60, rng()).world;
     const { world } = clickWorld(resting, rng());
     expect(world.dust.length).toBeGreaterThan(0);
+  });
+
+  it("puffs from the floor when a resting ball is launched", () => {
+    const resting = run(createWorld(), 30, 1 / 60, rng()).world;
+    const { world } = clickWorld(resting, rng());
+    for (const p of world.dust) {
+      expect(p.position[1]).toBeLessThan(FLOOR_POSITION_Y + 0.5);
+    }
+  });
+
+  it("puffs from under the ball, not the floor, when it is launched in mid-air", () => {
+    const midAir = {
+      ...createWorld(),
+      ball: createBall(BALL_CENTER_LIMIT + 2.5, -3),
+      dust: [],
+    };
+    const bottom = midAir.ball.y - BALL_RADIUS;
+    const { world } = clickWorld(midAir, rng());
+    expect(world.dust.length).toBeGreaterThan(0);
+    for (const p of world.dust) {
+      expect(p.position[1]).toBeGreaterThanOrEqual(bottom);
+      expect(p.position[1]).toBeLessThan(bottom + 0.5);
+    }
   });
 
   it("makes no puff for a click that is ignored", () => {

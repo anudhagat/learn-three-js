@@ -65,10 +65,35 @@ describe("impact dust", () => {
 });
 
 describe("launch dust", () => {
+  const floorBottom = FLOOR_POSITION_Y; // The bottom of a ball that is on the floor
+
   it("is a small puff, smaller than a hard landing", () => {
-    const puff = spawnLaunchDust(createRng(1)).length;
+    const puff = spawnLaunchDust(createRng(1), floorBottom).length;
     expect(puff).toBeGreaterThan(0);
     expect(puff).toBeLessThan(spawnImpactDust(9, createRng(1)).length);
+  });
+
+  it("starts at the floor when the ball launches from the floor", () => {
+    for (const p of spawnLaunchDust(createRng(2), floorBottom)) {
+      expect(p.position[1]).toBeGreaterThanOrEqual(floorBottom);
+      expect(p.position[1]).toBeLessThan(floorBottom + 0.5);
+    }
+  });
+
+  it("starts under the ball when it is launched in mid-air", () => {
+    const bottom = FLOOR_POSITION_Y + 2.5;
+    for (const p of spawnLaunchDust(createRng(2), bottom)) {
+      expect(p.position[1]).toBeGreaterThanOrEqual(bottom);
+      expect(p.position[1]).toBeLessThan(bottom + 0.5);
+    }
+  });
+
+  it("still sprays outwards and upwards from there", () => {
+    for (const p of spawnLaunchDust(createRng(3), FLOOR_POSITION_Y + 2)) {
+      expect(p.velocity[1]).toBeGreaterThan(0);
+      const outward = p.position[0] * p.velocity[0] + p.position[2] * p.velocity[2];
+      expect(outward).toBeGreaterThan(0);
+    }
   });
 });
 

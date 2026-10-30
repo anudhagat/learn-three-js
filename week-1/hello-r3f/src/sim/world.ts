@@ -1,4 +1,4 @@
-import { MAX_DELTA } from "./config";
+import { BALL_RADIUS, MAX_DELTA } from "./config";
 import {
   createBall,
   getMode,
@@ -75,7 +75,7 @@ export const clickWorld = (world: World, rng: Rng): WorldStep => {
   const ball = jumpBall(world.ball);
   if (ball.v <= world.ball.v) return { world: clicked, events: [] };
   return {
-    world: { ...clicked, ball, dust: [...world.dust, ...spawnLaunchDust(rng)] },
+    world: { ...clicked, ball, dust: [...world.dust, ...spawnLaunchDust(rng, world.ball.y - BALL_RADIUS)] },
     events: [{ type: "launch" }],
   };
 };

@@ -26,8 +26,9 @@ export interface DustView {
   opacity: number;
 }
 
-// A ring of stars thrown out from under the ball. `intensity` (0 to 1) sets how fast.
-const burst = (count: number, intensity: number, rng: Rng): Particle[] =>
+// A ring of stars thrown out from under the ball, starting at height `baseY`.
+// `intensity` (0 to 1) sets how fast.
+const burst = (count: number, intensity: number, rng: Rng, baseY: number): Particle[] =>
   Array.from({ length: count }, () => {
     const angle = rng() * Math.PI * 2;
     const [dx, dz] = [Math.cos(angle), Math.sin(angle)];
@@ -35,7 +36,7 @@ const burst = (count: number, intensity: number, rng: Rng): Particle[] =>
     const upward = (1.5 + 2 * intensity) * (0.6 + 0.4 * rng());
     const radius = BALL_RADIUS * 0.6;
     return {
-      position: [dx * radius, FLOOR_POSITION_Y + 0.05, dz * radius],
+      position: [dx * radius, baseY + 0.05, dz * radius],
       velocity: [dx * outward, upward, dz * outward],
       age: 0,
       life: DUST_MIN_LIFE + rng() * DUST_LIFE_RANGE,
@@ -46,11 +47,14 @@ const burst = (count: number, intensity: number, rng: Rng): Particle[] =>
 // Harder landings throw out more stars, faster; tiny ones throw out none
 export const spawnImpactDust = (speed: number, rng: Rng): Particle[] => {
   const intensity = speedIntensity(speed);
-  return burst(Math.round(MAX_DUST_PARTICLES * intensity), intensity, rng);
+  // Landings always happen on the floor
+  return burst(Math.round(MAX_DUST_PARTICLES * intensity), intensity, rng, FLOOR_POSITION_Y);
 };
 
-export const spawnLaunchDust = (rng: Rng): Particle[] =>
-  burst(LAUNCH_DUST_PARTICLES, 0.3, rng);
+// A small puff from the bottom of the ball: on the floor if it launches from there,
+// or in mid-air if it is clicked while flying
+export const spawnLaunchDust = (rng: Rng, ballBottomY: number): Particle[] =>
+  burst(LAUNCH_DUST_PARTICLES, 0.3, rng, ballBottomY);
 
 export const stepDust = (particles: Particle[], dt: number): Particle[] =>
   particles
