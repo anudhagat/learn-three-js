@@ -7,6 +7,7 @@ import {
   SUN_ELEVATION,
   driftAzimuth,
   hillProfile,
+  sunLightPosition,
   scatterClouds,
   scatterStars,
   skyDirection,
@@ -38,6 +39,35 @@ describe("sky direction", () => {
     for (const [az, el] of [[0.3, 0.2], [-1.2, 0.9], [2.5, -0.4]]) {
       expect(Math.hypot(...skyDirection(az, el))).toBeCloseTo(1, 9);
     }
+  });
+});
+
+describe("sun light", () => {
+  const position = sunLightPosition(40);
+
+  it("sits at the requested distance from the middle of the scene", () => {
+    expect(Math.hypot(...position)).toBeCloseTo(40, 9);
+  });
+
+  it("is in the same direction as the sun you see in the sky", () => {
+    const [x, y, z] = skyDirection(SUN_AZIMUTH, SUN_ELEVATION).map((v) => v * 40);
+    expect(position[0]).toBeCloseTo(x, 9);
+    expect(position[1]).toBeCloseTo(y, 9);
+    expect(position[2]).toBeCloseTo(z, 9);
+  });
+
+  it("is behind the scene, away from the camera, so shadows fall towards it", () => {
+    // The camera sits on the positive z side, looking towards negative z
+    expect(position[2]).toBeLessThan(0);
+  });
+
+  it("is above the horizon but low", () => {
+    expect(position[1]).toBeGreaterThan(0);
+    expect(SUN_ELEVATION).toBeLessThan(0.4);
+  });
+
+  it("is on the left, matching the sun's place in the view", () => {
+    expect(position[0]).toBeLessThan(0);
   });
 });
 

@@ -4,7 +4,7 @@ type Vec3 = [number, number, number];
 
 // Where the sun sits: to the left of the view, low over the horizon
 export const SUN_AZIMUTH = -0.55;
-export const SUN_ELEVATION = 0.13;
+export const SUN_ELEVATION = 0.18;
 
 // Unit direction for an azimuth (radians right of the camera's view) and elevation
 // (radians above the horizon)
@@ -13,6 +13,12 @@ export const skyDirection = (azimuth: number, elevation: number): Vec3 => [
   Math.sin(elevation),
   -Math.cos(azimuth) * Math.cos(elevation),
 ];
+
+// Where to put a light so that it shines from the sun you see in the sky
+export const sunLightPosition = (distance: number): Vec3 => {
+  const [x, y, z] = skyDirection(SUN_AZIMUTH, SUN_ELEVATION);
+  return [x * distance, y * distance, z * distance];
+};
 
 const angleBetween = (a: Vec3, b: Vec3) =>
   Math.acos(Math.min(1, Math.max(-1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2])));
