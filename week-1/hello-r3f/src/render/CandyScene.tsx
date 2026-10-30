@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import * as THREE from "three";
 import { FLOOR_POSITION_Y } from "../sim/config";
 import { CANDY_PROPS, FLOOR_SIZE, type CandyProp } from "./candyLayout";
 import {
@@ -7,12 +8,26 @@ import {
   createSkyTexture,
   createSwirlTexture,
 } from "./candyTextures";
+import { createCurvedGroundGeometry, groundHeight, surfaceNormal } from "./groundCurve";
+
+// Where a prop stands: on the curved ground, tilted to follow the surface
+const placeOnGround = (x: number, z: number) => {
+  const [nx, ny, nz] = surfaceNormal(x, z);
+  const tilt = new THREE.Quaternion().setFromUnitVectors(
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(nx, ny, nz),
+  );
+  return {
+    position: [x, FLOOR_POSITION_Y + groundHeight(x, z), z] as [number, number, number],
+    quaternion: tilt,
+  };
+};
 
 const Lollipop = ({ position: [x, z], size, color }: CandyProp) => {
   const swirl = useMemo(() => createSwirlTexture(color), [color]);
   const stickHeight = size * 3.2;
   return (
-    <group position={[x, FLOOR_POSITION_Y, z]}>
+    <group {...placeOnGround(x, z)}>
       <mesh position={[0, stickHeight / 2, 0]}>
         <cylinderGeometry args={[size * 0.07, size * 0.07, stickHeight, 12]} />
         <meshStandardMaterial color="#ffffff" roughness={0.3} />
@@ -29,7 +44,7 @@ const Lollipop = ({ position: [x, z], size, color }: CandyProp) => {
 
 const Gumdrop = ({ position: [x, z], size, color }: CandyProp) => (
   // Half of the sphere sinks into the floor, leaving a dome
-  <mesh position={[x, FLOOR_POSITION_Y, z]} scale={[1, 0.85, 1]}>
+  <mesh {...placeOnGround(x, z)} scale={[1, 0.85, 1]}>
     <sphereGeometry args={[size, 32, 24]} />
     <meshStandardMaterial color={color} roughness={0.25} />
   </mesh>
@@ -38,14 +53,14 @@ const Gumdrop = ({ position: [x, z], size, color }: CandyProp) => (
 export const CandyScene = () => {
   const sky = useMemo(() => createSkyTexture(), []);
   const checker = useMemo(() => createCheckerTexture(FLOOR_SIZE / 3), []);
+  const ground = useMemo(() => createCurvedGroundGeometry(FLOOR_SIZE, 160), []);
 
   return (
     <>
       <primitive object={sky} attach="background" />
       {/* Fades the far floor into the horizon colour */}
       <fog attach="fog" args={[HORIZON_COLOR, 18, 55]} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, FLOOR_POSITION_Y, 0]}>
-        <planeGeometry args={[FLOOR_SIZE, FLOOR_SIZE]} />
+      <mesh geometry={ground} position={[0, FLOOR_POSITION_Y, 0]}>
         <meshStandardMaterial map={checker} roughness={0.2} metalness={0.05} />
       </mesh>
       {CANDY_PROPS.map((prop) =>
