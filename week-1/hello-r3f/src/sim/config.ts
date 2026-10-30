@@ -13,3 +13,6 @@ export const MAX_STRETCH = 0.25;
 export const SLEEP_DELAY = 1; // Seconds of rest before the ball falls asleep
 export const MAX_TILT = 0.4; // Radians the ball looks up at the top of a bounce
 export const TILT_SPEED = 4; // Vertical speed above which the ball is level
+export const DIZZY_CLICKS = 5; // Clicks needed within DIZZY_WINDOW to make the ball dizzy
+export const DIZZY_WINDOW = 3; // Seconds
+export const DIZZY_DURATION = 2; // Seconds the ball stays dizzy

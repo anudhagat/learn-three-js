@@ -24,10 +24,17 @@ const drawEye = (ctx: CanvasRenderingContext2D, eyes: FaceSpec["eyes"], dir: -1 
     ctx.fillStyle = INK;
     ctx.ellipse(x, y, 16, 24, 0, 0, Math.PI * 2);
     ctx.fill();
-  } else {
+  } else if (eyes === "closed") {
     // A relaxed downward curve
     stroke(ctx);
     ctx.arc(x, y - 6, 22, 0.15 * Math.PI, 0.85 * Math.PI);
+    ctx.stroke();
+  } else {
+    stroke(ctx, 7);
+    for (let a = 0; a < Math.PI * 6; a += 0.2) {
+      const r = 3 + a * 1.9;
+      ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    }
     ctx.stroke();
   }
 };
@@ -38,9 +45,19 @@ const drawMouth = (ctx: CanvasRenderingContext2D, mouth: FaceSpec["mouth"]) => {
   stroke(ctx);
   if (mouth === "smile") {
     ctx.arc(FACE_X, y - 25, 45, 0.15 * Math.PI, 0.85 * Math.PI);
-  } else {
+  } else if (mouth === "flat") {
     ctx.moveTo(FACE_X - 22, y);
     ctx.lineTo(FACE_X + 22, y);
+  } else {
+    ctx.moveTo(FACE_X - 50, y);
+    for (let i = 0; i < 4; i++) {
+      ctx.quadraticCurveTo(
+        FACE_X - 50 + i * 25 + 12,
+        y + (i % 2 ? 14 : -14),
+        FACE_X - 50 + (i + 1) * 25,
+        y,
+      );
+    }
   }
   ctx.stroke();
 };

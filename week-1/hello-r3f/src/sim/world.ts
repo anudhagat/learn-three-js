@@ -9,11 +9,18 @@ import {
   type ImpactEvent,
 } from "./ball";
 import { getBallPitch, getBallVisual } from "./deformation";
-import { getExpression, type Expression } from "./expression";
+import {
+  createExpressionState,
+  getExpression,
+  registerClick,
+  type Expression,
+  type ExpressionState,
+} from "./expression";
 
 export interface World {
   time: number; // Simulation clock in seconds
   ball: BallState;
+  expression: ExpressionState;
 }
 
 export type WorldEvent = ImpactEvent | { type: "launch" };
@@ -31,7 +38,11 @@ export interface WorldView {
   expression: Expression;
 }
 
-export const createWorld = (): World => ({ time: 0, ball: createBall() });
+export const createWorld = (): World => ({
+  time: 0,
+  ball: createBall(),
+  expression: createExpressionState(),
+});
 
 export const stepWorld = (world: World, rawDelta: number): WorldStep => {
   const dt = Math.min(rawDelta, MAX_DELTA);
@@ -40,14 +51,19 @@ export const stepWorld = (world: World, rawDelta: number): WorldStep => {
 };
 
 export const clickWorld = (world: World): WorldStep => {
+  // Every click counts towards getting dizzy, even one the ball ignores
+  const clicked = {
+    ...world,
+    expression: registerClick(world.expression, world.time),
+  };
   const ball = jumpBall(world.ball);
-  if (ball.v <= world.ball.v) return { world, events: [] };
-  return { world: { ...world, ball }, events: [{ type: "launch" }] };
+  if (ball.v <= world.ball.v) return { world: clicked, events: [] };
+  return { world: { ...clicked, ball }, events: [{ type: "launch" }] };
 };
 
 export const getView = (world: World): WorldView => ({
   ...getBallVisual(world.ball),
   pitch: getBallPitch(world.ball),
   mode: getMode(world.ball),
-  expression: getExpression(world.ball),
+  expression: getExpression(world.ball, world.expression, world.time),
 });
