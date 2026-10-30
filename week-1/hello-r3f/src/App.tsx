@@ -6,7 +6,7 @@ import { SkyReflections } from "./render/SkyReflections";
 
 export default function App() {
   return (
-    <Canvas shadows="soft" camera={{ position: [0, 1.5, 8], fov: 70 }}>
+    <Canvas shadows="percentage" camera={{ position: [0, 1.5, 8], fov: 70 }}>
       <Lights />
       <SkyReflections />
       <CandyScene />

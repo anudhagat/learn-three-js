@@ -19,6 +19,8 @@ export const Lights = () => (
       shadow-camera-bottom={-22}
       shadow-camera-near={1}
       shadow-camera-far={90}
+      shadow-radius={7} // Wider blur makes the edges softer
+      shadow-intensity={0.7} // Lets some light through, so shadows are less dark
       shadow-bias={-0.001}
       shadow-normalBias={0.08}
     />
