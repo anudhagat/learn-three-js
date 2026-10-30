@@ -1,0 +1,12 @@
+export const INITIAL_POSITION_Y = 0; // Initial position of the ball
+export const FLOOR_POSITION_Y = -2; // Floor position of the ball
+export const BALL_RADIUS = 0.5; // Radius of the ball
+export const BALL_CENTER_LIMIT = FLOOR_POSITION_Y + BALL_RADIUS; // Limit for the ball's center position
+export const GRAVITY = -9.8;
+export const RESTITUTION = 0.8; // Coefficient of restitution (bounciness)
+export const REST_VELOCITY = 0.5; // Below this bounce speed, the ball stops
+export const MAX_DELTA = 1 / 30; // Avoid huge steps after tab switches
+export const SQUASH_DURATION = 0.1; // Seconds the ball stays squashed on impact
+export const REFERENCE_SPEED = 6; // Speed at which squash and stretch reach their maximum
+export const MAX_SQUASH = 0.4;
+export const MAX_STRETCH = 0.25;

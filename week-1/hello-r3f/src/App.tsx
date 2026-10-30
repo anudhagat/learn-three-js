@@ -1,15 +1,9 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
-import {
-  BALL_RADIUS,
-  FLOOR_POSITION_Y,
-  INITIAL_POSITION_Y,
-  createBall,
-  getBallVisual,
-  jumpBall,
-  stepBall,
-} from "./physics";
+import { BALL_RADIUS, FLOOR_POSITION_Y, INITIAL_POSITION_Y } from "./sim/config";
+import { createBall, jumpBall, stepBall } from "./sim/ball";
+import { getBallVisual } from "./sim/deformation";
 
 const BouncingBall = () => {
   const meshRef = useRef<THREE.Mesh>(null);
