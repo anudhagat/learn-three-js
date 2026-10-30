@@ -7,7 +7,7 @@ import { CANDY_PROPS } from "./candyLayout";
 import { scatterTufts } from "./grassBlades";
 import { groundHeight } from "./groundCurve";
 
-const TUFT_COUNT = 14000;
+const TUFT_COUNT = 2500;
 const BLADE_SEGMENTS = 4;
 const DARK_GREEN = new THREE.Color("#1f6b3a");
 const LIGHT_GREEN = new THREE.Color("#86d65c");
@@ -49,7 +49,7 @@ const createGrassMaterial = (time: { value: number }) => {
   });
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = time;
-    shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`.replace(
+    shader.vertexShader = `uniform float uTime;\nattribute float aWind;\n${shader.vertexShader}`.replace(
       "#include <project_vertex>",
       /* glsl */ `
         vec4 mvPosition = vec4( transformed, 1.0 );
@@ -60,8 +60,8 @@ const createGrassMaterial = (time: { value: number }) => {
           vec2 spot = instanceMatrix[ 3 ].xz;
           float sway = sin( uTime * 1.6 + spot.x * 0.35 + spot.y * 0.25 )
                      + 0.4 * sin( uTime * 3.2 + spot.x * 1.1 );
-          mvPosition.x += sway * 0.06 * bladeHeight * bladeTip;
-          mvPosition.z += sway * 0.025 * bladeHeight * bladeTip;
+          mvPosition.x += sway * 0.06 * bladeHeight * bladeTip * aWind;
+          mvPosition.z += sway * 0.025 * bladeHeight * bladeTip * aWind;
         #endif
         mvPosition = modelViewMatrix * mvPosition;
         gl_Position = projectionMatrix * mvPosition;
@@ -80,7 +80,6 @@ const setUniform = (uniform: { value: number }, value: number) => {
 export const GrassLawn = () => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const time = useMemo(() => ({ value: 0 }), []);
-  const geometry = useMemo(() => createBladeGeometry(), []);
   const material = useMemo(() => createGrassMaterial(time), [time]);
   const blades = useMemo(
     () =>
@@ -91,6 +90,15 @@ export const GrassLawn = () => {
       ).flatMap((tuft) => tuft.blades),
     [],
   );
+  // How much each blade sways, so the far ones stay still
+  const geometry = useMemo(() => {
+    const blade = createBladeGeometry();
+    blade.setAttribute(
+      "aWind",
+      new THREE.InstancedBufferAttribute(Float32Array.from(blades, (b) => b.wind), 1),
+    );
+    return blade;
+  }, [blades]);
 
   // The instance colour buffer must exist before the first render
   useLayoutEffect(() => {

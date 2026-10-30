@@ -1,8 +1,24 @@
 import type { Rng } from "../sim/rng";
+import { CAMERA_POSITION } from "./camera";
 
 export const BLADE_CLEARING = 1.3; // Bare ground under the ball, so its shadow stays visible
-export const BLADE_RADIUS = 18; // How far the lawn of blades reaches
+export const BLADE_RADIUS = 9; // How far the lawn of blades reaches
+export const FADE_START = 5; // Beyond this the blades thin out until they stop at BLADE_RADIUS
 const RAMP = 2.5; // Distance over which the blades thicken up from the clearing
+
+// The camera looks slightly down, so ground nearer than this is below the bottom of
+// the view, and the sides are limited by the field of view (with a margin)
+export const VIEW_NEAREST_Z = 4.6;
+const VIEW_HALF_ANGLE = 0.95; // Radians
+
+export const isInView = (x: number, z: number): boolean =>
+  z <= VIEW_NEAREST_Z &&
+  Math.abs(x) <= (CAMERA_POSITION[2] - z) * Math.tan(VIEW_HALF_ANGLE);
+
+// Blades sway fully near the camera and not at all far from it, where the motion
+// can't be seen anyway
+export const WIND_NEAR = 7;
+export const WIND_FAR = 15;
 
 export interface Obstacle {
   position: [number, number]; // x and z
@@ -18,12 +34,20 @@ export interface Blade {
   yaw: number; // Radians the blade is turned around
   tone: number; // 0 for the darkest green, 1 for the lightest
   phase: number; // Offsets the wind sway so the field doesn't move in lockstep
+  wind: number; // 1 sways fully, 0 stays still
 }
 
 const smoothstep = (t: number) => {
   const x = Math.min(Math.max(t, 0), 1);
   return x * x * (3 - 2 * x);
 };
+
+export const windFactor = (x: number, z: number): number =>
+  1 -
+  smoothstep(
+    (Math.hypot(x - CAMERA_POSITION[0], z - CAMERA_POSITION[2]) - WIND_NEAR) /
+      (WIND_FAR - WIND_NEAR),
+  );
 
 export interface Tuft {
   x: number;
@@ -56,6 +80,7 @@ const growTuft = (x: number, z: number, rng: Rng): Tuft => {
     yaw,
     tone: clamp01(tone + (rng() - 0.5) * 0.2),
     phase: phase + rng() * 0.4, // A tuft sways together
+    wind: windFactor(bx, bz),
   });
 
   const middle = blade(
@@ -83,8 +108,8 @@ const growTuft = (x: number, z: number, rng: Rng): Tuft => {
   return { x, z, blades: [middle, ...ring] };
 };
 
-// Scatters tufts evenly over the lawn, thinning out towards the clearing and keeping
-// clear of the candy
+// Scatters tufts over the part of the lawn the camera can see: thin by the clearing,
+// full in the middle, fading out towards the edge, and clear of the candy
 export const scatterTufts = (rng: Rng, count: number, obstacles: Obstacle[]): Tuft[] => {
   const tufts: Tuft[] = [];
   const innerSquared = BLADE_CLEARING ** 2;
@@ -95,7 +120,11 @@ export const scatterTufts = (rng: Rng, count: number, obstacles: Obstacle[]): Tu
     const angle = rng() * Math.PI * 2;
     const [x, z] = [Math.cos(angle) * radius, Math.sin(angle) * radius];
 
-    if (rng() > smoothstep((radius - BLADE_CLEARING) / RAMP)) continue;
+    if (!isInView(x, z)) continue;
+    const thickness =
+      smoothstep((radius - BLADE_CLEARING) / RAMP) *
+      (1 - smoothstep((radius - FADE_START) / (BLADE_RADIUS - FADE_START)));
+    if (rng() > thickness) continue;
     const blocked = obstacles.some(
       (o) =>
         Math.hypot(x - o.position[0], z - o.position[1]) <= o.size * 1.15 + TUFT_RADIUS,
