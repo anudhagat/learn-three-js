@@ -14,3 +14,4 @@ export const WIDE_EYED_SPEED = 4; // Falling faster than this makes the ball wid
 export const DIZZY_CLICKS = 5; // Clicks needed within DIZZY_WINDOW to make the ball dizzy
 export const DIZZY_WINDOW = 3; // Seconds
 export const DIZZY_DURATION = 2; // Seconds the ball stays dizzy
+export const SLEEP_DELAY = 1; // Seconds of rest before the ball falls asleep

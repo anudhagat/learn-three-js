@@ -165,3 +165,23 @@ describe("ball events", () => {
     expect(stepBallWithEvents(ball, 1 / 60).ball).toEqual(stepBall(ball, 1 / 60));
   });
 });
+
+describe("rest time", () => {
+  it("starts at zero on the step the ball settles", () => {
+    let ball = createBall();
+    for (let i = 0; i < 60 * 30 && !ball.atRest; i++) ball = stepBall(ball, 1 / 60);
+    expect(ball.atRest).toBe(true);
+    expect(ball.restTime).toBe(0);
+  });
+
+  it("accumulates while the ball rests", () => {
+    const settled = simulate(createBall(), 30, 1 / 60);
+    const later = simulate(settled, 0.5, 1 / 60);
+    expect(later.restTime).toBeCloseTo(settled.restTime + 0.5, 6);
+  });
+
+  it("resets when the ball jumps", () => {
+    const settled = simulate(createBall(), 30, 1 / 60);
+    expect(jumpBall(simulate(settled, 1, 1 / 60)).restTime).toBe(0);
+  });
+});

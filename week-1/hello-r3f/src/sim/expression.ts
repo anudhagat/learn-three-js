@@ -2,6 +2,7 @@ import {
   DIZZY_CLICKS,
   DIZZY_DURATION,
   DIZZY_WINDOW,
+  SLEEP_DELAY,
   WIDE_EYED_SPEED,
 } from "./config";
 import { getMode, type BallMode, type BallState } from "./ball";
@@ -27,7 +28,7 @@ export const registerClick = (state: ExpressionState, time: number): ExpressionS
 };
 
 const STEADY_EXPRESSION: Record<BallMode, Expression> = {
-  resting: "sleepy",
+  resting: "happy", // Falls asleep only after resting for SLEEP_DELAY
   rising: "happy",
   falling: "happy",
 };
@@ -40,6 +41,7 @@ export const getExpression = (
   if (time < state.dizzyUntil) return "dizzy";
   if (ball.squashTime >= 0) return "squint";
   const mode = getMode(ball);
+  if (mode === "resting" && ball.restTime >= SLEEP_DELAY) return "sleepy";
   if (mode === "falling" && -ball.v >= WIDE_EYED_SPEED) return "wideEyed";
   return STEADY_EXPRESSION[mode];
 };

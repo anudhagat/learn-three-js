@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createBall } from "./ball";
-import { DIZZY_CLICKS, DIZZY_DURATION, DIZZY_WINDOW } from "./config";
+import { createBall, stepBall } from "./ball";
+import { DIZZY_CLICKS, DIZZY_DURATION, DIZZY_WINDOW, SLEEP_DELAY } from "./config";
 import {
   createExpressionState,
   getExpression,
@@ -8,6 +8,7 @@ import {
   type ExpressionState,
 } from "./expression";
 import { simulate } from "./testing";
+
 
 const calm = createExpressionState();
 
@@ -18,6 +19,20 @@ describe("expression by ball mode", () => {
   it("is sleepy once the ball is resting", () => {
     const resting = simulate(createBall(), 30, 1 / 60);
     expect(getExpression(resting, calm, 30)).toBe("sleepy");
+  });
+
+  it("stays happy for a moment after settling", () => {
+    let settled = createBall();
+    for (let i = 0; i < 60 * 30 && !settled.atRest; i++) settled = stepBall(settled, 1 / 60);
+    const justRested = simulate(settled, SLEEP_DELAY - 0.2, 1 / 60);
+    expect(justRested.atRest).toBe(true);
+    expect(getExpression(justRested, calm, 30)).toBe("happy");
+  });
+
+  it("falls asleep after resting for a while", () => {
+    const settled = simulate(createBall(), 30, 1 / 60);
+    const rested = simulate(settled, SLEEP_DELAY + 0.1, 1 / 60);
+    expect(getExpression(rested, calm, 30)).toBe("sleepy");
   });
 
   it("is happy while rising", () => {

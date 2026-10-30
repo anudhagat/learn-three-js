@@ -14,6 +14,7 @@ export interface BallState {
   atRest: boolean;
   squashTime: number; // Time since impact, or -1 when not in contact
   impactSpeed: number; // Speed of the most recent impact
+  restTime: number; // Seconds the ball has been at rest
 }
 
 export const createBall = (y = INITIAL_POSITION_Y, v = 0.02): BallState => ({
@@ -22,6 +23,7 @@ export const createBall = (y = INITIAL_POSITION_Y, v = 0.02): BallState => ({
   atRest: false,
   squashTime: -1,
   impactSpeed: 0,
+  restTime: 0,
 });
 
 export type BallMode = "resting" | "rising" | "falling";
@@ -43,6 +45,7 @@ export const jumpBall = (state: BallState): BallState =>
     ? {
         ...state,
         atRest: false,
+        restTime: 0,
         v: Math.sqrt(2 * -GRAVITY * Math.max(INITIAL_POSITION_Y - state.y, 0)),
       }
     : state;
@@ -71,9 +74,11 @@ export interface BallStep {
 }
 
 export const stepBallWithEvents = (state: BallState, rawDelta: number): BallStep => {
-  if (state.atRest) return { ball: state, events: [] };
-
   const dt = Math.min(rawDelta, MAX_DELTA);
+  if (state.atRest) {
+    return { ball: { ...state, restTime: state.restTime + dt }, events: [] };
+  }
+
   const next = fall(state.y, state.v, dt);
   if (next.y > BALL_CENTER_LIMIT) {
     return { ball: advanceSquash({ ...state, ...next }, dt), events: [] };
@@ -94,7 +99,7 @@ export const stepBallWithEvents = (state: BallState, rawDelta: number): BallStep
 
   if (bounceV < REST_VELOCITY) {
     return {
-      ball: { ...state, y: BALL_CENTER_LIMIT, v: 0, atRest: true, squashTime: -1 },
+      ball: { ...state, y: BALL_CENTER_LIMIT, v: 0, atRest: true, squashTime: -1, restTime: 0 },
       events,
     };
   }
