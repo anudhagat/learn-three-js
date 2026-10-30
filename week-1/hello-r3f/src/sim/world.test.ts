@@ -79,6 +79,13 @@ describe("clicking the world", () => {
     expect(getView(world).expression).toBe("dizzy");
   });
 
+  it("shows the ball's shadow in the view, fainter when it is high", () => {
+    const high = getView(createWorld()).shadow;
+    const low = getView(resting()).shadow;
+    expect(low.opacity).toBeGreaterThan(high.opacity);
+    expect(low.radius).toBeGreaterThan(high.radius);
+  });
+
   it("shows the expression in the view", () => {
     expect(getView(resting()).expression).toBe("sleepy");
   });

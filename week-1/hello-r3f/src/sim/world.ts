@@ -18,6 +18,7 @@ import {
   type Particle,
 } from "./dust";
 import type { Rng } from "./rng";
+import { getBallShadow, type BallShadow } from "./shadow";
 import {
   createExpressionState,
   getExpression,
@@ -47,6 +48,7 @@ export interface WorldView {
   mode: BallMode;
   expression: Expression;
   dust: DustView[];
+  shadow: BallShadow;
 }
 
 export const createWorld = (): World => ({
@@ -84,4 +86,5 @@ export const getView = (world: World): WorldView => ({
   mode: getMode(world.ball),
   expression: getExpression(world.ball, world.expression, world.time),
   dust: getDustView(world.dust),
+  shadow: getBallShadow(world.ball),
 });
