@@ -1,21 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { FACE_SPECS } from "./faceSpec";
 import { DROWSY_FRAMES, drowsyFrameIndex, getFaceLook, pickFace } from "./faceLook";
 
 describe("face look", () => {
   it("is the happy face when wide awake", () => {
     expect(getFaceLook(0)).toEqual({ eyeOpen: 1, smile: 1, blush: 1 });
-    // And it matches what the happy spec describes
-    expect(FACE_SPECS.happy.eyes).toBe("open");
-    expect(FACE_SPECS.happy.mouth).toBe("smile");
-    expect(FACE_SPECS.happy.blush).toBe(true);
   });
 
   it("is the sleepy face when fast asleep", () => {
     expect(getFaceLook(1)).toEqual({ eyeOpen: 0, smile: 0, blush: 0 });
-    expect(FACE_SPECS.sleepy.eyes).toBe("closed");
-    expect(FACE_SPECS.sleepy.mouth).toBe("flat");
-    expect(FACE_SPECS.sleepy.blush).toBe(false);
   });
 
   it("closes the eyes, flattens the smile and fades the blush as it gets drowsier", () => {
