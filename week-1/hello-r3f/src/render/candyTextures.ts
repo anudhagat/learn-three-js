@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { createRng } from "../sim/rng";
-import { scatterGrass } from "./grassDetails";
+import { scatterGrass, wrapOffsets, type Blade, type Flower } from "./grassDetails";
+import { tileableNoise } from "./noise";
+import { normalsFromHeights } from "./normalMap";
 
 export const HORIZON_COLOR = "#8b4a9f"; // Purple haze the hills and the ground fade into; also the fog
 
@@ -71,61 +73,122 @@ export const createSunTexture = () => {
   return toTexture(canvas);
 };
 
-const lerpChannel = (a: number, b: number, t: number) => Math.round(a + (b - a) * t);
+const GRASS_SIZE = 1024;
+const WRAP_MARGIN = 0.08; // Items this close to an edge are drawn again on the far side
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
 const bladeColor = (shade: number) =>
-  `rgb(${lerpChannel(30, 88, shade)}, ${lerpChannel(106, 190, shade)}, ${lerpChannel(56, 96, shade)})`;
+  `rgb(${Math.round(lerp(18, 60, shade))}, ${Math.round(lerp(100, 185, shade))}, ${Math.round(lerp(70, 112, shade))})`;
 
-// A tiling lawn: a mid green base with blades in many shades and a few tiny flowers.
-// Kept fairly dark so the sparkles stand out.
-export const createGrassTexture = (repeat: number) => {
-  const size = 512;
-  const { canvas, ctx } = makeCanvas(size, size);
-  ctx.fillStyle = "#2c8745";
-  ctx.fillRect(0, 0, size, size);
-
-  const { blades, flowers } = scatterGrass(createRng(7), 2600, 14);
+// Draws each blade and flower, and again on the far side of any edge it crosses
+const paintGrass = (
+  ctx: CanvasRenderingContext2D,
+  blades: Blade[],
+  flowers: Flower[],
+  bladeStyle: (blade: Blade) => string,
+  flowerStyle: (flower: Flower) => [string, string],
+) => {
+  const size = GRASS_SIZE;
   ctx.lineCap = "round";
-  ctx.lineWidth = 2.5;
-  // Draw each item at its wrapped neighbours too, so the tile has no visible seams
-  const wraps = [-1, 0, 1];
+  ctx.lineWidth = 3.5;
   for (const blade of blades) {
-    ctx.strokeStyle = bladeColor(blade.shade);
-    for (const dx of wraps) {
-      for (const dy of wraps) {
-        const x = (blade.x + dx) * size;
-        const y = (blade.y + dy) * size;
-        const tipX = x + Math.sin(blade.lean) * blade.length * size;
-        const tipY = y - Math.cos(blade.lean) * blade.length * size;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.quadraticCurveTo(x, y - blade.length * size * 0.6, tipX, tipY);
-        ctx.stroke();
-      }
+    ctx.strokeStyle = bladeStyle(blade);
+    for (const [dx, dy] of wrapOffsets(blade.x, blade.y, WRAP_MARGIN)) {
+      const x = (blade.x + dx) * size;
+      const y = (blade.y + dy) * size;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(
+        x,
+        y - blade.length * size * 0.6,
+        x + Math.sin(blade.lean) * blade.length * size,
+        y - Math.cos(blade.lean) * blade.length * size,
+      );
+      ctx.stroke();
     }
   }
   for (const flower of flowers) {
-    for (const dx of wraps) {
-      for (const dy of wraps) {
-        const x = (flower.x + dx) * size;
-        const y = (flower.y + dy) * size;
-        ctx.fillStyle = flower.color;
-        ctx.beginPath();
-        ctx.arc(x, y, flower.radius * size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#f7b733";
-        ctx.beginPath();
-        ctx.arc(x, y, flower.radius * size * 0.4, 0, Math.PI * 2);
-        ctx.fill();
-      }
+    const [petals, centre] = flowerStyle(flower);
+    for (const [dx, dy] of wrapOffsets(flower.x, flower.y, WRAP_MARGIN)) {
+      const x = (flower.x + dx) * size;
+      const y = (flower.y + dy) * size;
+      ctx.fillStyle = petals;
+      ctx.beginPath();
+      ctx.arc(x, y, flower.radius * size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = centre;
+      ctx.beginPath();
+      ctx.arc(x, y, flower.radius * size * 0.4, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
-
-  const texture = toTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(repeat, repeat);
-  texture.anisotropy = 8;
-  return texture;
 };
+
+// A tiling lawn and its normal map. The colour drifts between deeper and brighter
+// greens in broad patches, with darker hollows; blades and a few flowers sit on top.
+// The blades are also painted into a height map, which becomes the normal map, so
+// the sun catches each blade. Kept blue-green, as warm light turns yellow-greens tan.
+export const createGrassTextures = (repeat: number) => {
+  const size = GRASS_SIZE;
+  const rng = createRng(7);
+  const patches = tileableNoise(rng, size, 3, 3);
+  const hollows = tileableNoise(rng, size, 6, 2);
+  const { blades, flowers } = scatterGrass(rng, 7000, 16);
+
+  const { canvas, ctx } = makeCanvas(size, size);
+  const base = ctx.createImageData(size, size);
+  for (let i = 0; i < size * size; i++) {
+    const shade = 1 - 0.3 * smoothHollow(hollows[i]);
+    base.data[i * 4] = lerp(24, 52, patches[i]) * shade;
+    base.data[i * 4 + 1] = lerp(112, 150, patches[i]) * shade;
+    base.data[i * 4 + 2] = lerp(66, 80, patches[i]) * shade;
+    base.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(base, 0, 0);
+  paintGrass(
+    ctx,
+    blades,
+    flowers,
+    (blade) => bladeColor(blade.shade),
+    (flower) => [flower.color, "#f7b733"],
+  );
+
+  // Heights: gentle swells under the blades, which stand taller, and the flowers
+  const { ctx: heightCtx } = makeCanvas(size, size);
+  const swells = heightCtx.createImageData(size, size);
+  for (let i = 0; i < size * size; i++) {
+    const grey = patches[i] * 60;
+    swells.data.set([grey, grey, grey, 255], i * 4);
+  }
+  heightCtx.putImageData(swells, 0, 0);
+  paintGrass(
+    heightCtx,
+    blades,
+    flowers,
+    (blade) => {
+      const grey = Math.round(lerp(110, 230, blade.shade));
+      return `rgb(${grey}, ${grey}, ${grey})`;
+    },
+    () => ["rgb(255, 255, 255)", "rgb(200, 200, 200)"],
+  );
+  const pixels = heightCtx.getImageData(0, 0, size, size).data;
+  const heights = Float32Array.from({ length: size * size }, (_, i) => pixels[i * 4] / 255);
+
+  const { canvas: normalCanvas, ctx: normalCtx } = makeCanvas(size, size);
+  normalCtx.putImageData(new ImageData(normalsFromHeights(heights, size, 3), size, size), 0, 0);
+
+  const tile = (texture: THREE.CanvasTexture) => {
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(repeat, repeat);
+    texture.anisotropy = 8;
+    return texture;
+  };
+  const normalMap = new THREE.CanvasTexture(normalCanvas); // Data, not colour
+  return { map: tile(toTexture(canvas)), normalMap: tile(normalMap) };
+};
+
+// Deepens the hollows: noise below the middle counts as shade, above it as none
+const smoothHollow = (value: number) => Math.min(Math.max((0.55 - value) / 0.35, 0), 1);
 
 // A spiral of `color` on white, for the top of a lollipop
 export const createSwirlTexture = (color: string) => {

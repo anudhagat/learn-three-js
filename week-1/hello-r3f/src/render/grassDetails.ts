@@ -33,3 +33,11 @@ export const scatterGrass = (rng: Rng, bladeCount: number, flowerCount: number) 
     color: FLOWER_COLORS[Math.floor(rng() * FLOWER_COLORS.length)],
   })),
 });
+
+// Which copies of an item at (x, y) are needed so it tiles: itself, plus a copy on the
+// far side for any edge it is within `margin` of
+export const wrapOffsets = (x: number, y: number, margin: number): [number, number][] => {
+  const across = [0, ...(x < margin ? [1] : []), ...(x > 1 - margin ? [-1] : [])];
+  const down = [0, ...(y < margin ? [1] : []), ...(y > 1 - margin ? [-1] : [])];
+  return across.flatMap((dx) => down.map((dy): [number, number] => [dx, dy]));
+};
