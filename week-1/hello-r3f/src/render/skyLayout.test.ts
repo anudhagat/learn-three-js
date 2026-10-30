@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createRng } from "../sim/rng";
 import {
   CLOUD_PUFF_SQUASH,
+  CLOUD_WRAP,
   SUN_AZIMUTH,
   SUN_ELEVATION,
+  driftAzimuth,
   hillProfile,
   scatterClouds,
   scatterStars,
@@ -65,16 +67,50 @@ describe("clouds", () => {
     }
   });
 
-  it("builds each cloud from several positive puffs", () => {
+  it("builds each cloud from many positive puffs", () => {
     for (const cloud of clouds) {
-      expect(cloud.puffs.length).toBeGreaterThanOrEqual(4);
-      expect(cloud.puffs.length).toBeLessThanOrEqual(8);
+      expect(cloud.puffs.length).toBeGreaterThanOrEqual(12);
+      expect(cloud.puffs.length).toBeLessThanOrEqual(17);
       for (const puff of cloud.puffs) expect(puff.radius).toBeGreaterThan(0);
     }
   });
 
   it("makes no clouds when asked for none", () => {
     expect(scatterClouds(createRng(1), 0)).toEqual([]);
+  });
+});
+
+describe("cloud drift", () => {
+  it("gives every cloud a slow rightward speed", () => {
+    for (const cloud of scatterClouds(createRng(5), 30)) {
+      expect(cloud.speed).toBeGreaterThanOrEqual(0.01);
+      expect(cloud.speed).toBeLessThanOrEqual(0.03);
+    }
+  });
+
+  it("stays put at time zero", () => {
+    expect(driftAzimuth(0.4, 0.02, 0)).toBeCloseTo(0.4, 12);
+  });
+
+  it("moves by speed times time", () => {
+    expect(driftAzimuth(0.4, 0.02, 10)).toBeCloseTo(0.6, 9);
+  });
+
+  it("wraps around past the edge, out of sight", () => {
+    expect(driftAzimuth(CLOUD_WRAP - 0.01, 0.1, 0.2)).toBeCloseTo(-CLOUD_WRAP + 0.01, 9);
+  });
+
+  it("stays within the wrap range however long it runs", () => {
+    for (const time of [0, 55, 300, 1e4, 1e6]) {
+      const azimuth = driftAzimuth(1.2, 0.025, time);
+      expect(azimuth).toBeGreaterThanOrEqual(-CLOUD_WRAP);
+      expect(azimuth).toBeLessThan(CLOUD_WRAP);
+    }
+  });
+
+  it("starts outside the view's wrap edge so clouds never pop in sight", () => {
+    // The camera sees about ±0.85 rad; clouds wrap well beyond that
+    expect(CLOUD_WRAP).toBeGreaterThan(1.2);
   });
 });
 

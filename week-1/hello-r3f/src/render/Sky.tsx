@@ -1,3 +1,4 @@
+import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { createRng } from "../sim/rng";
@@ -6,6 +7,7 @@ import {
   CLOUD_PUFF_SQUASH,
   SUN_AZIMUTH,
   SUN_ELEVATION,
+  driftAzimuth,
   hillProfile,
   scatterClouds,
   scatterStars,
@@ -57,43 +59,108 @@ const createHillGeometry = (profile: number[], distance: number, ridgeColor: str
   return geometry;
 };
 
+const CLOUD_RIM = new THREE.Color("#ffd2a0");
+
+// Flat-coloured puffs with a soft warm glow along the edges that face the sun
+const cloudMaterial = (sunDirection: THREE.Vector3) =>
+  new THREE.ShaderMaterial({
+    uniforms: {
+      uSunDir: { value: sunDirection },
+      uRim: { value: CLOUD_RIM },
+    },
+    vertexShader: /* glsl */ `
+      varying vec3 vColor;
+      varying vec3 vNormalW;
+      varying vec3 vViewW;
+      void main() {
+        vColor = instanceColor;
+        mat4 m = modelMatrix * instanceMatrix;
+        vec4 worldPos = m * vec4(position, 1.0);
+        vNormalW = normalize(mat3(m) * normal);
+        vViewW = cameraPosition - worldPos.xyz;
+        gl_Position = projectionMatrix * viewMatrix * worldPos;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform vec3 uSunDir;
+      uniform vec3 uRim;
+      varying vec3 vColor;
+      varying vec3 vNormalW;
+      varying vec3 vViewW;
+      void main() {
+        vec3 n = normalize(vNormalW);
+        vec3 v = normalize(vViewW);
+        float towardSun = max(dot(n, uSunDir), 0.0);
+        float edge = pow(1.0 - max(dot(n, v), 0.0), 2.0);
+        float rim = edge * smoothstep(0.0, 0.7, towardSun);
+        vec3 color = vColor + uRim * rim * 0.9 + uRim * towardSun * 0.12;
+        gl_FragColor = vec4(color, 1.0);
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+
 const Clouds = () => {
   const clouds = useMemo(() => scatterClouds(createRng(11), 16), []);
   const puffCount = clouds.reduce((sum, cloud) => sum + cloud.puffs.length, 0);
   const meshRef = useRef<THREE.InstancedMesh>(null);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const material = useMemo(
+    () => cloudMaterial(new THREE.Vector3(...skyDirection(SUN_AZIMUTH, SUN_ELEVATION))),
+    [],
+  );
 
-  useLayoutEffect(() => {
+  // Puffs keep their order, so colours are set once and only positions move
+  const place = (time: number) => {
     const mesh = meshRef.current;
     if (!mesh) return;
-    const dummy = new THREE.Object3D();
-    const color = new THREE.Color();
     let i = 0;
     for (const cloud of clouds) {
-      const [cx, cy, cz] = scaled(skyDirection(cloud.azimuth, cloud.elevation), CLOUD_DISTANCE);
+      const azimuth = driftAzimuth(cloud.azimuth, cloud.speed, time);
+      const [cx, cy, cz] = scaled(skyDirection(azimuth, cloud.elevation), CLOUD_DISTANCE);
       const unit = cloud.size * CLOUD_SCALE;
       for (const puff of cloud.puffs) {
         // Spread along the horizontal direction facing the cloud
         dummy.position.set(
-          cx + Math.cos(cloud.azimuth) * puff.dx * unit,
+          cx + Math.cos(azimuth) * puff.dx * unit,
           cy + puff.dy * unit,
-          cz + Math.sin(cloud.azimuth) * puff.dx * unit,
+          cz + Math.sin(azimuth) * puff.dx * unit,
         );
         dummy.scale.set(puff.radius * unit, puff.radius * CLOUD_PUFF_SQUASH * unit, puff.radius * unit);
         dummy.updateMatrix();
-        mesh.setMatrixAt(i, dummy.matrix);
-        // Lit tops, shaded undersides
-        mesh.setColorAt(i, color.lerpColors(CLOUD_SHADE, CLOUD_LIGHT, Math.min(Math.max((puff.dy - 0.25) / 0.7, 0), 1)));
-        i++;
+        mesh.setMatrixAt(i++, dummy.matrix);
       }
     }
     mesh.instanceMatrix.needsUpdate = true;
+  };
+
+  // The instance colour buffer must exist before the first render
+  useLayoutEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const color = new THREE.Color();
+    let i = 0;
+    for (const cloud of clouds) {
+      for (const puff of cloud.puffs) {
+        // Lit tops, shaded bases
+        const lit = Math.min(Math.max((puff.dy - 0.25) / 0.7, 0), 1);
+        mesh.setColorAt(i++, color.lerpColors(CLOUD_SHADE, CLOUD_LIGHT, lit));
+      }
+    }
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [clouds]);
+    place(0);
+  });
+
+  useFrame(({ clock }) => place(clock.elapsedTime));
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, puffCount]} frustumCulled={false}>
+    <instancedMesh
+      ref={meshRef}
+      args={[undefined, undefined, puffCount]}
+      material={material}
+      frustumCulled={false}
+    >
       <sphereGeometry args={[1, 20, 14]} />
-      <meshBasicMaterial fog={false} toneMapped={false} />
     </instancedMesh>
   );
 };
