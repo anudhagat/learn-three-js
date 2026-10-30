@@ -5,9 +5,9 @@ import { CANDY_PROPS, FLOOR_SIZE, type CandyProp } from "./candyLayout";
 import {
   HORIZON_COLOR,
   createGrassTexture,
-  createSkyTexture,
   createSwirlTexture,
 } from "./candyTextures";
+import { Sky } from "./Sky";
 import { createCurvedGroundGeometry, groundHeight, surfaceNormal } from "./groundCurve";
 
 // Where a prop stands: on the curved ground, tilted to follow the surface
@@ -51,13 +51,12 @@ const Gumdrop = ({ position: [x, z], size, color }: CandyProp) => (
 );
 
 export const CandyScene = () => {
-  const sky = useMemo(() => createSkyTexture(), []);
   const grass = useMemo(() => createGrassTexture(FLOOR_SIZE / 8), []);
   const ground = useMemo(() => createCurvedGroundGeometry(FLOOR_SIZE, 160), []);
 
   return (
     <>
-      <primitive object={sky} attach="background" />
+      <Sky />
       {/* Fades the far floor into the horizon colour */}
       <fog attach="fog" args={[HORIZON_COLOR, 18, 55]} />
       <mesh geometry={ground} position={[0, FLOOR_POSITION_Y, 0]}>

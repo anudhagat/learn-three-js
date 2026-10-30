@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { createRng } from "../sim/rng";
 import { scatterGrass } from "./grassDetails";
 
-export const HORIZON_COLOR = "#ff8f9c";
+export const HORIZON_COLOR = "#d8689f"; // Haze at the horizon; also the ground fog
 
 
 const makeCanvas = (width: number, height: number) => {
@@ -18,17 +18,56 @@ const toTexture = (canvas: HTMLCanvasElement) => {
   return texture;
 };
 
-// A dusk sky: deep indigo at the top fading to a rosy glow at the horizon, which
-// sits roughly 54% of the way down the view
+// Dusk bands, from the top of the dome down to the horizon. Positions are fractions
+// of the texture height; the horizon is at 0.5 and the view only ever sees the
+// middle of the dome, so the colours are packed in around it.
+const SKY_BANDS: [number, string][] = [
+  [0, "#120d38"],
+  [0.22, "#1b1445"],
+  [0.31, "#3a2170"],
+  [0.37, "#6a3394"],
+  [0.42, "#b04c9e"],
+  [0.465, "#ff7f9c"],
+  [0.5, "#ffb58a"],
+  [0.56, "#ffc79a"],
+  [1, "#7a3f78"],
+];
+
+// A dusk sky in soft stepped bands, wrapped around the whole scene
 export const createSkyTexture = () => {
-  const { canvas, ctx } = makeCanvas(16, 512);
-  const gradient = ctx.createLinearGradient(0, 0, 0, 512);
-  gradient.addColorStop(0, "#1b1445");
-  gradient.addColorStop(0.28, "#4b2a7a");
-  gradient.addColorStop(0.54, HORIZON_COLOR);
-  gradient.addColorStop(1, "#ffc08a");
+  const height = 1024;
+  const { canvas, ctx } = makeCanvas(8, height);
+  const blend = 0.012; // Width of the soft edge between bands
+  const gradient = ctx.createLinearGradient(0, 0, 0, height);
+  SKY_BANDS.forEach(([position, color], i) => {
+    const next = SKY_BANDS[i + 1];
+    gradient.addColorStop(position, color);
+    // Hold each colour until just before the next band starts
+    if (next) gradient.addColorStop(Math.max(position, next[0] - blend), color);
+  });
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 16, 512);
+  ctx.fillRect(0, 0, 8, height);
+  return toTexture(canvas);
+};
+
+// A big soft sun: a bright core, a warm halo and a faint ring
+export const createSunTexture = () => {
+  const size = 256;
+  const { canvas, ctx } = makeCanvas(size, size);
+  const c = size / 2;
+  const halo = ctx.createRadialGradient(c, c, 0, c, c, c);
+  halo.addColorStop(0, "rgba(255, 250, 220, 1)");
+  halo.addColorStop(0.2, "rgba(255, 244, 200, 1)");
+  halo.addColorStop(0.24, "rgba(255, 200, 140, 0.55)");
+  halo.addColorStop(0.55, "rgba(255, 140, 140, 0.18)");
+  halo.addColorStop(1, "rgba(255, 140, 140, 0)");
+  ctx.fillStyle = halo;
+  ctx.fillRect(0, 0, size, size);
+  ctx.strokeStyle = "rgba(255, 230, 190, 0.25)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(c, c, c * 0.72, 0, Math.PI * 2);
+  ctx.stroke();
   return toTexture(canvas);
 };
 

@@ -1,0 +1,130 @@
+import { describe, expect, it } from "vitest";
+import { createRng } from "../sim/rng";
+import {
+  SUN_AZIMUTH,
+  SUN_ELEVATION,
+  hillProfile,
+  scatterClouds,
+  scatterStars,
+  skyDirection,
+} from "./skyLayout";
+
+const angleBetween = (a: number[], b: number[]) =>
+  Math.acos(Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
+
+describe("sky direction", () => {
+  it("looks along the camera's view at zero azimuth and elevation", () => {
+    const [x, y, z] = skyDirection(0, 0);
+    expect(x).toBeCloseTo(0, 9);
+    expect(y).toBeCloseTo(0, 9);
+    expect(z).toBeCloseTo(-1, 9);
+  });
+
+  it("looks straight up at ninety degrees of elevation", () => {
+    const [x, y, z] = skyDirection(0.4, Math.PI / 2);
+    expect(x).toBeCloseTo(0, 9);
+    expect(y).toBeCloseTo(1, 9);
+    expect(z).toBeCloseTo(0, 9);
+  });
+
+  it("turns right with positive azimuth", () => {
+    expect(skyDirection(Math.PI / 2, 0)[0]).toBeCloseTo(1, 9);
+  });
+
+  it("always has unit length", () => {
+    for (const [az, el] of [[0.3, 0.2], [-1.2, 0.9], [2.5, -0.4]]) {
+      expect(Math.hypot(...skyDirection(az, el))).toBeCloseTo(1, 9);
+    }
+  });
+});
+
+describe("clouds", () => {
+  const sun = skyDirection(SUN_AZIMUTH, SUN_ELEVATION);
+  const clouds = scatterClouds(createRng(5), 12);
+
+  it("scatters the requested number, repeatably", () => {
+    expect(clouds).toHaveLength(12);
+    expect(scatterClouds(createRng(5), 12)).toEqual(clouds);
+    expect(scatterClouds(createRng(6), 12)).not.toEqual(clouds);
+  });
+
+  it("keeps clouds above the horizon and in front of the camera", () => {
+    for (const cloud of clouds) {
+      // The camera looks slightly down, so only the lower sky is in view
+      expect(cloud.elevation).toBeGreaterThanOrEqual(0.1);
+      expect(cloud.elevation).toBeLessThanOrEqual(0.4);
+      expect(Math.abs(cloud.azimuth)).toBeLessThanOrEqual(1.4);
+    }
+  });
+
+  it("keeps clouds off the sun", () => {
+    for (const cloud of clouds) {
+      const direction = skyDirection(cloud.azimuth, cloud.elevation);
+      expect(angleBetween(direction, sun)).toBeGreaterThanOrEqual(0.3);
+    }
+  });
+
+  it("builds each cloud from several positive puffs", () => {
+    for (const cloud of clouds) {
+      expect(cloud.puffs.length).toBeGreaterThanOrEqual(4);
+      expect(cloud.puffs.length).toBeLessThanOrEqual(8);
+      for (const puff of cloud.puffs) expect(puff.radius).toBeGreaterThan(0);
+    }
+  });
+
+  it("makes no clouds when asked for none", () => {
+    expect(scatterClouds(createRng(1), 0)).toEqual([]);
+  });
+});
+
+describe("stars", () => {
+  const stars = scatterStars(createRng(2), 80);
+
+  it("scatters the requested number, repeatably", () => {
+    expect(stars).toHaveLength(80);
+    expect(scatterStars(createRng(2), 80)).toEqual(stars);
+  });
+
+  it("keeps stars above the clouds and in front of the camera", () => {
+    for (const star of stars) {
+      expect(star.elevation).toBeGreaterThanOrEqual(0.3);
+      expect(star.elevation).toBeLessThanOrEqual(1.5);
+      expect(Math.abs(star.azimuth)).toBeLessThanOrEqual(1.3);
+      expect(star.size).toBeGreaterThan(0);
+    }
+  });
+
+  it("packs more stars into the lower sky where the camera can see them", () => {
+    const many = scatterStars(createRng(3), 1000);
+    const low = many.filter((s) => s.elevation < 0.65).length;
+    const high = many.filter((s) => s.elevation >= 0.9).length;
+    expect(low).toBeGreaterThan(high);
+  });
+});
+
+describe("hill profile", () => {
+  const profile = hillProfile(createRng(9), 64, 4, 6);
+
+  it("has one height per segment, repeatably", () => {
+    expect(profile).toHaveLength(64);
+    expect(hillProfile(createRng(9), 64, 4, 6)).toEqual(profile);
+  });
+
+  it("stays between the base height and base plus amplitude", () => {
+    for (const h of profile) {
+      expect(h).toBeGreaterThanOrEqual(4);
+      expect(h).toBeLessThanOrEqual(10);
+    }
+  });
+
+  it("wraps around smoothly with no seam", () => {
+    const step = Math.abs(profile[1] - profile[0]);
+    expect(Math.abs(profile[0] - profile[profile.length - 1])).toBeLessThanOrEqual(
+      step * 3 + 0.5,
+    );
+  });
+
+  it("rolls rather than staying flat", () => {
+    expect(Math.max(...profile) - Math.min(...profile)).toBeGreaterThan(1);
+  });
+});
