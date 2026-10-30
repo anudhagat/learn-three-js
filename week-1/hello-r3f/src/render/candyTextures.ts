@@ -211,3 +211,16 @@ export const createSwirlTexture = (color: string) => {
   }
   return toTexture(canvas);
 };
+
+// Bands of `color` and white that repeat along the length, for striped candy sticks
+export const createStripeTexture = (color: string, bands = 6) => {
+  const { canvas, ctx } = makeCanvas(32, 256);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, 32, 256);
+  ctx.fillStyle = color;
+  const band = 256 / (bands * 2);
+  for (let i = 0; i < bands; i++) ctx.fillRect(0, i * band * 2, 32, band);
+  const texture = toTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  return texture;
+};
