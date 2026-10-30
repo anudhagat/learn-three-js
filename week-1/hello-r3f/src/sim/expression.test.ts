@@ -1,96 +1,42 @@
 import { describe, expect, it } from "vitest";
 import { createBall, stepBall } from "./ball";
-import { DIZZY_CLICKS, DIZZY_DURATION, DIZZY_WINDOW, SLEEP_DELAY } from "./config";
-import {
-  createExpressionState,
-  getExpression,
-  registerClick,
-  type ExpressionState,
-} from "./expression";
+import { SLEEP_DELAY } from "./config";
+import { getExpression } from "./expression";
 import { simulate } from "./testing";
 
+const justSettled = () => {
+  let ball = createBall();
+  for (let i = 0; i < 60 * 30 && !ball.atRest; i++) ball = stepBall(ball, 1 / 60);
+  return ball;
+};
 
-const calm = createExpressionState();
+describe("expression", () => {
+  it("is happy while rising", () => {
+    expect(getExpression(createBall(0, 3))).toBe("happy");
+  });
 
-const clickAt = (times: number[]): ExpressionState =>
-  times.reduce((state, t) => registerClick(state, t), calm);
+  it("stays happy while falling, even fast", () => {
+    expect(getExpression(createBall(0, -1))).toBe("happy");
+    expect(getExpression(createBall(0, -9))).toBe("happy");
+  });
 
-describe("expression by ball mode", () => {
-  it("is sleepy once the ball is resting", () => {
-    const resting = simulate(createBall(), 30, 1 / 60);
-    expect(getExpression(resting, calm, 30)).toBe("sleepy");
+  it("stays happy while squashed on the floor", () => {
+    const squashed = { ...createBall(-1.5, 3), squashTime: 0.02, impactSpeed: 5 };
+    expect(getExpression(squashed)).toBe("happy");
   });
 
   it("stays happy for a moment after settling", () => {
-    let settled = createBall();
-    for (let i = 0; i < 60 * 30 && !settled.atRest; i++) settled = stepBall(settled, 1 / 60);
-    const justRested = simulate(settled, SLEEP_DELAY - 0.2, 1 / 60);
-    expect(justRested.atRest).toBe(true);
-    expect(getExpression(justRested, calm, 30)).toBe("happy");
+    const rested = simulate(justSettled(), SLEEP_DELAY - 0.2, 1 / 60);
+    expect(rested.atRest).toBe(true);
+    expect(getExpression(rested)).toBe("happy");
   });
 
   it("falls asleep after resting for a while", () => {
-    const settled = simulate(createBall(), 30, 1 / 60);
-    const rested = simulate(settled, SLEEP_DELAY + 0.1, 1 / 60);
-    expect(getExpression(rested, calm, 30)).toBe("sleepy");
+    const rested = simulate(justSettled(), SLEEP_DELAY + 0.1, 1 / 60);
+    expect(getExpression(rested)).toBe("sleepy");
   });
 
-  it("is happy while rising", () => {
-    expect(getExpression(createBall(0, 3), calm, 0)).toBe("happy");
-  });
-
-  it("is happy while drifting down slowly", () => {
-    expect(getExpression(createBall(0, -1), calm, 0)).toBe("happy");
-  });
-
-  it("is wide-eyed while falling fast", () => {
-    expect(getExpression(createBall(0, -6), calm, 0)).toBe("wideEyed");
-  });
-
-  it("squints while squashed on the floor", () => {
-    const squashed = { ...createBall(-1.5, 3), squashTime: 0.02, impactSpeed: 5 };
-    expect(getExpression(squashed, calm, 0)).toBe("squint");
-  });
-});
-
-describe("dizzy", () => {
-  const ball = createBall(0, 3);
-
-  it("starts after enough rapid clicks", () => {
-    const times = Array.from({ length: DIZZY_CLICKS }, (_, i) => i * 0.2);
-    const state = clickAt(times);
-    expect(getExpression(ball, state, times[times.length - 1])).toBe("dizzy");
-  });
-
-  it("does not start with one click too few", () => {
-    const times = Array.from({ length: DIZZY_CLICKS - 1 }, (_, i) => i * 0.2);
-    expect(getExpression(ball, clickAt(times), 1)).not.toBe("dizzy");
-  });
-
-  it("does not start when the clicks are spread out", () => {
-    const spacing = (DIZZY_WINDOW + 0.5) / (DIZZY_CLICKS - 1);
-    const times = Array.from({ length: DIZZY_CLICKS }, (_, i) => i * spacing);
-    expect(getExpression(ball, clickAt(times), times[times.length - 1])).not.toBe(
-      "dizzy",
-    );
-  });
-
-  it("wears off after a while", () => {
-    const times = Array.from({ length: DIZZY_CLICKS }, (_, i) => i * 0.2);
-    const state = clickAt(times);
-    const last = times[times.length - 1];
-    expect(getExpression(ball, state, last + DIZZY_DURATION - 0.1)).toBe("dizzy");
-    expect(getExpression(ball, state, last + DIZZY_DURATION + 0.1)).not.toBe("dizzy");
-  });
-
-  it("outranks every other expression", () => {
-    const times = Array.from({ length: DIZZY_CLICKS }, (_, i) => i * 0.2);
-    const squashed = { ...createBall(-1.5, 3), squashTime: 0.02, impactSpeed: 5 };
-    expect(getExpression(squashed, clickAt(times), 1)).toBe("dizzy");
-  });
-
-  it("only keeps recent clicks", () => {
-    const times = Array.from({ length: 200 }, (_, i) => i * 10);
-    expect(clickAt(times).clicks.length).toBeLessThanOrEqual(DIZZY_CLICKS);
+  it("wakes up as soon as the ball moves again", () => {
+    expect(getExpression({ ...createBall(0, 3), restTime: 10 })).toBe("happy");
   });
 });

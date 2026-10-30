@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BALL_CENTER_LIMIT, DIZZY_CLICKS } from "./config";
+import { BALL_CENTER_LIMIT } from "./config";
 import { createBall } from "./ball";
 import { getBallVisual } from "./deformation";
 import {
@@ -67,14 +67,8 @@ describe("clicking the world", () => {
   it("ignores a click while the ball is rising", () => {
     const rising = clickWorld(resting()).world;
     const { world, events } = clickWorld(rising);
-    expect(world.ball).toBe(rising.ball);
+    expect(world).toBe(rising);
     expect(events).toEqual([]);
-  });
-
-  it("still counts an ignored click towards getting dizzy", () => {
-    let world = clickWorld(resting()).world;
-    for (let i = 0; i < DIZZY_CLICKS; i++) world = clickWorld(world).world;
-    expect(getView(world).expression).toBe("dizzy");
   });
 
   it("shows the expression in the view", () => {
