@@ -27,15 +27,15 @@ const scaled = (direction: [number, number, number], distance: number) =>
 
 // Distant ranges of hills, nearest last; each hides the foot of the one behind
 const HILL_LAYERS = [
-  { distance: 240, base: 5, amplitude: 9, color: "#a05aac", seed: 1 },
-  { distance: 190, base: 3, amplitude: 7, color: "#7a4399", seed: 2 },
-  { distance: 140, base: 1, amplitude: 5, color: "#552f88", seed: 3 },
+  { distance: 240, base: 5, amplitude: 9, color: "#ff9aa0", seed: 1 },
+  { distance: 190, base: 3, amplitude: 7, color: "#e6779f", seed: 2 },
+  { distance: 140, base: 1, amplitude: 5, color: "#c25ca0", seed: 3 },
 ];
 const HILL_SEGMENTS = 160;
 const HILL_FOOT = -45; // Where a hill has faded fully into the horizon haze
 
-// Each hill fades from its ridge colour into the haze at its foot, so the land
-// melts into the horizon where it meets the ground
+// Each ridge starts close to the glowing sky and fades into purple haze at its
+// foot, so the colour changes gradually from the sky down to the ground
 const createHillGeometry = (profile: number[], distance: number, ridgeColor: string) => {
   const positions: number[] = [];
   const colors: number[] = [];

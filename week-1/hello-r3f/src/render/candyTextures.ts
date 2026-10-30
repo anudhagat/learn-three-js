@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { createRng } from "../sim/rng";
 import { scatterGrass } from "./grassDetails";
 
-export const HORIZON_COLOR = "#d8689f"; // Haze at the horizon; also the ground fog
+export const HORIZON_COLOR = "#8b4a9f"; // Purple haze the hills and the ground fade into; also the fog
 
 
 const makeCanvas = (width: number, height: number) => {
@@ -37,7 +37,7 @@ const SKY_BANDS: [number, string][] = [
 export const createSkyTexture = () => {
   const height = 1024;
   const { canvas, ctx } = makeCanvas(8, height);
-  const blend = 0.012; // Width of the soft edge between bands
+  const blend = 0.03; // Width of the soft edge between bands
   const gradient = ctx.createLinearGradient(0, 0, 0, height);
   SKY_BANDS.forEach(([position, color], i) => {
     const next = SKY_BANDS[i + 1];
