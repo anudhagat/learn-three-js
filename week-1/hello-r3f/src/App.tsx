@@ -14,12 +14,13 @@ const BouncingBall = () => {
   useFrame((_, deltaTime) => {
     if (!meshRef.current) return;
     worldRef.current = stepWorld(worldRef.current, deltaTime).world;
-    const { positionY, scale, expression } = getView(worldRef.current);
+    const { positionY, scale, pitch, expression } = getView(worldRef.current);
     if (materialRef.current && materialRef.current.map !== faces[expression]) {
       materialRef.current.map = faces[expression];
     }
     meshRef.current.position.y = positionY;
     meshRef.current.scale.set(...scale);
+    meshRef.current.rotation.x = -pitch; // Negative tilts the face up
   });
 
   return (

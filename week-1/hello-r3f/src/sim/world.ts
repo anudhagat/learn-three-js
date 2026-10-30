@@ -8,7 +8,7 @@ import {
   type BallState,
   type ImpactEvent,
 } from "./ball";
-import { getBallVisual } from "./deformation";
+import { getBallPitch, getBallVisual } from "./deformation";
 import { getExpression, type Expression } from "./expression";
 
 export interface World {
@@ -26,6 +26,7 @@ export interface WorldStep {
 export interface WorldView {
   positionY: number;
   scale: [number, number, number];
+  pitch: number; // Radians the ball looks up
   mode: BallMode;
   expression: Expression;
 }
@@ -46,6 +47,7 @@ export const clickWorld = (world: World): WorldStep => {
 
 export const getView = (world: World): WorldView => ({
   ...getBallVisual(world.ball),
+  pitch: getBallPitch(world.ball),
   mode: getMode(world.ball),
   expression: getExpression(world.ball),
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { BALL_CENTER_LIMIT, BALL_RADIUS, FLOOR_POSITION_Y } from "./config";
+import { BALL_CENTER_LIMIT, BALL_RADIUS, FLOOR_POSITION_Y, MAX_TILT } from "./config";
 import { createBall, stepBall, stepBallWithEvents } from "./ball";
-import { getBallVisual } from "./deformation";
+import { getBallPitch, getBallVisual } from "./deformation";
 import { simulate } from "./testing";
 
 describe("squash and stretch", () => {
@@ -95,5 +95,38 @@ describe("squash across the opening bounces", () => {
     // A clear margin, so clamped (identical) squash can't pass on rounding noise
     expect(second - first).toBeGreaterThan(0.03);
     expect(third - second).toBeGreaterThan(0.03);
+  });
+});
+
+describe("ball pitch", () => {
+  it("is level when resting", () => {
+    expect(getBallPitch(simulate(createBall(), 30, 1 / 60))).toBe(0);
+  });
+
+  it("looks fully up at the top of the bounce", () => {
+    expect(getBallPitch(createBall(0, 0))).toBeCloseTo(MAX_TILT, 6);
+  });
+
+  it("is level when moving fast, up or down", () => {
+    expect(getBallPitch(createBall(0, 9))).toBe(0);
+    expect(getBallPitch(createBall(0, -9))).toBe(0);
+  });
+
+  it("tilts up more and more as the ball approaches the top", () => {
+    expect(getBallPitch(createBall(0, 1))).toBeGreaterThan(getBallPitch(createBall(0, 3)));
+    expect(getBallPitch(createBall(0, 3))).toBeGreaterThan(0);
+  });
+
+  it("levels out again on the way down", () => {
+    expect(getBallPitch(createBall(0, -1))).toBeGreaterThan(getBallPitch(createBall(0, -3)));
+    expect(getBallPitch(createBall(0, -1))).toBeLessThan(MAX_TILT);
+  });
+
+  it("stays between level and the maximum tilt", () => {
+    simulate(createBall(), 10, 1 / 120, (ball) => {
+      const pitch = getBallPitch(ball);
+      expect(pitch).toBeGreaterThanOrEqual(0);
+      expect(pitch).toBeLessThanOrEqual(MAX_TILT);
+    });
   });
 });

@@ -11,3 +11,5 @@ export const REFERENCE_SPEED = 9.5; // Speed at which squash and stretch reach t
 export const MAX_SQUASH = 0.4;
 export const MAX_STRETCH = 0.25;
 export const SLEEP_DELAY = 1; // Seconds of rest before the ball falls asleep
+export const MAX_TILT = 0.4; // Radians the ball looks up at the top of a bounce
+export const TILT_SPEED = 4; // Vertical speed above which the ball is level

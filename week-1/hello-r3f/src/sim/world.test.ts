@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BALL_CENTER_LIMIT } from "./config";
+import { BALL_CENTER_LIMIT, MAX_TILT } from "./config";
 import { createBall } from "./ball";
 import { getBallVisual } from "./deformation";
 import {
@@ -84,6 +84,11 @@ describe("clicking the world", () => {
 });
 
 describe("view", () => {
+  it("exposes the tilt, level when resting and tilted up at the top", () => {
+    expect(getView(run(createWorld(), 30).world).pitch).toBe(0);
+    expect(getView(createWorld()).pitch).toBeGreaterThan(0.9 * MAX_TILT);
+  });
+
   it("exposes the visual and mode for the renderer", () => {
     const world = run(createWorld(), 0.5).world;
     const view = getView(world);
