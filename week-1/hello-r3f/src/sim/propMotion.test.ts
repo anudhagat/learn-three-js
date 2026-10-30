@@ -5,15 +5,15 @@ import {
   DANCE_DURATION,
   JELLY_DURATION,
   MAX_DANCE_TILT,
-  ROLL_DURATION,
-  ROLL_RADIUS,
-  ROLL_TURNS,
   SHELLS_DURATION,
   SPIN_DURATION,
   SPIN_TURNS,
+  TWIRL_DURATION,
+  TWIRL_SETTLE,
+  TWIRL_TURNS,
   cherryBounce,
   danceMotion,
-  donutRoll,
+  donutTwirl,
   jellyScale,
   shellsWobble,
   spinAngle,
@@ -166,84 +166,101 @@ describe("gumdrop jelly giggle", () => {
   });
 });
 
-describe("donut roll", () => {
-  const REST = { x: 0, z: 0, heading: 0, stand: 0, roll: 0 };
+describe("donut twirl", () => {
+  const REST = { stand: 0, spin: 0, rock: 0, lift: 0 };
+  const settleStart = TWIRL_DURATION - TWIRL_SETTLE;
+  const spinning = samples(settleStart, 800);
 
   it("is at rest before and after", () => {
-    for (const t of [-1, 0, ROLL_DURATION, ROLL_DURATION + 4]) {
-      expect(donutRoll(t)).toEqual(REST);
+    for (const t of [-1, 0, TWIRL_DURATION, TWIRL_DURATION + 4]) {
+      expect(donutTwirl(t)).toEqual(REST);
     }
   });
 
-  it("stands up on its edge, stays up while rolling, then lies down", () => {
-    const stands = samples(ROLL_DURATION).map((t) => donutRoll(t).stand);
+  it("stands up on its edge, stays up while it twirls, then lies down", () => {
+    const stands = samples(TWIRL_DURATION).map((t) => donutTwirl(t).stand);
     expect(Math.max(...stands)).toBe(1);
     for (const stand of stands) {
       expect(stand).toBeGreaterThanOrEqual(0);
       expect(stand).toBeLessThanOrEqual(1);
     }
-    // Up for the middle stretch of the roll, flat again just before the end
-    expect(donutRoll(ROLL_DURATION * 0.5).stand).toBe(1);
-    expect(donutRoll(ROLL_DURATION * 0.999).stand).toBeLessThan(0.05);
-    // Stands up quickly rather than slowly leaning
-    expect(donutRoll(ROLL_DURATION * 0.2).stand).toBeGreaterThan(0.5);
+    expect(donutTwirl(0.6).stand).toBe(1); // Quickly up
+    expect(donutTwirl(TWIRL_DURATION * 0.4).stand).toBe(1);
+    expect(donutTwirl(settleStart).stand).toBe(0); // Flat again before the rocking
   });
 
-  it("rolls round a circle, not a straight line", () => {
-    // Every point on the path is ROLL_RADIUS from the circle's centre
-    for (const t of samples(ROLL_DURATION * 0.999)) {
-      const { x, z } = donutRoll(t);
-      expect(Math.hypot(x, z - ROLL_RADIUS)).toBeCloseTo(ROLL_RADIUS, 6);
-    }
-  });
-
-  it("comes back to where it started", () => {
-    const { x, z } = donutRoll(ROLL_DURATION * 0.9999);
-    expect(Math.hypot(x, z)).toBeLessThan(0.05);
-  });
-
-  it("travels a good way, so it is clearly a roll", () => {
-    const furthest = Math.max(
-      ...samples(ROLL_DURATION).map((t) => Math.hypot(donutRoll(t).x, donutRoll(t).z)),
-    );
-    expect(furthest).toBeGreaterThan(ROLL_RADIUS * 1.5);
-    expect(ROLL_RADIUS).toBeGreaterThanOrEqual(1);
-    expect(ROLL_RADIUS).toBeLessThanOrEqual(3);
-  });
-
-  it("faces the way it is going and only ever turns one way", () => {
-    let previous = -1;
-    for (const t of samples(ROLL_DURATION * 0.999)) {
-      const { x, z, heading } = donutRoll(t);
-      expect(heading).toBeGreaterThanOrEqual(previous);
-      previous = heading;
-      // While it is moving, the next bit of the path leads off the way it faces
-      const ahead = donutRoll(t + 0.001);
-      if (Math.hypot(ahead.x - x, ahead.z - z) > 1e-5) {
-        const direction = Math.atan2(ahead.z - z, ahead.x - x);
-        expect(Math.cos(direction - heading)).toBeGreaterThan(0.99);
-      }
-    }
-    expect(donutRoll(ROLL_DURATION * 0.9999).heading).toBeCloseTo(Math.PI * 2, 2);
-  });
-
-  it("rolls a whole number of turns, so it ends looking just as it started", () => {
-    expect(Number.isInteger(ROLL_TURNS)).toBe(true);
-    expect(donutRoll(ROLL_DURATION * 0.9999).roll).toBeCloseTo(ROLL_TURNS * Math.PI * 2, 2);
-  });
-
-  it("rolls forwards at a steady, decent speed while standing", () => {
+  it("spins on the spot a few whole turns, only ever forwards", () => {
+    expect(Number.isInteger(TWIRL_TURNS)).toBe(true);
+    expect(TWIRL_TURNS).toBeGreaterThanOrEqual(3);
     let previous = 0;
-    for (const t of samples(ROLL_DURATION * 0.999)) {
-      const { roll } = donutRoll(t);
-      expect(roll).toBeGreaterThanOrEqual(previous);
-      previous = roll;
+    for (const t of spinning) {
+      const { spin } = donutTwirl(t);
+      expect(spin).toBeGreaterThanOrEqual(previous);
+      previous = spin;
+    }
+    // Ends on a whole number of turns, so it looks the same as when it began
+    expect(donutTwirl(settleStart).spin).toBeCloseTo(TWIRL_TURNS * Math.PI * 2, 6);
+  });
+
+  it("starts fast and slows right down, like a spinning coin running out of spin", () => {
+    const speed = (t: number) => (donutTwirl(t + 0.01).spin - donutTwirl(t).spin) / 0.01;
+    expect(speed(0.5)).toBeGreaterThan(speed(settleStart * 0.5));
+    expect(speed(settleStart - 0.4)).toBeLessThan(speed(0.5) * 0.15);
+  });
+
+  it("only tips down once the spin has almost died away", () => {
+    const liesDown = (t: number) => donutTwirl(t).stand < 1;
+    const firstTipping = spinning.find((t) => t > 0.6 && liesDown(t))!;
+    const speed = (donutTwirl(firstTipping + 0.01).spin - donutTwirl(firstTipping).spin) / 0.01;
+    expect(speed).toBeLessThan(2);
+  });
+
+  it("takes a few seconds", () => {
+    expect(TWIRL_DURATION).toBeGreaterThanOrEqual(2);
+    expect(TWIRL_DURATION).toBeLessThanOrEqual(3.6);
+  });
+});
+
+describe("donut settling like a coin", () => {
+  const settleStart = TWIRL_DURATION - TWIRL_SETTLE;
+  const settling = samples(TWIRL_SETTLE, 600).map((s) => settleStart + s * 0.9999);
+
+  it("rocks from side to side a few times", () => {
+    let crossings = 0;
+    let previous = 0;
+    for (const t of settling) {
+      const { rock } = donutTwirl(t);
+      if (previous !== 0 && rock !== 0 && Math.sign(rock) !== Math.sign(previous)) crossings++;
+      if (rock !== 0) previous = rock;
+    }
+    expect(crossings).toBeGreaterThanOrEqual(2);
+    expect(crossings).toBeLessThanOrEqual(8);
+  });
+
+  it("rocks less and less until it lies still", () => {
+    const peak = (from: number, to: number) =>
+      Math.max(
+        ...settling.filter((t) => t >= from && t < to).map((t) => Math.abs(donutTwirl(t).rock)),
+      );
+    const half = settleStart + TWIRL_SETTLE / 2;
+    expect(peak(half, TWIRL_DURATION)).toBeLessThan(peak(settleStart, half) * 0.5);
+    expect(Math.abs(donutTwirl(TWIRL_DURATION * 0.99999).rock)).toBeLessThan(0.02);
+  });
+
+  it("starts the rocking from still, so nothing jumps", () => {
+    expect(Math.abs(donutTwirl(settleStart + 0.001).rock)).toBeLessThan(0.01);
+  });
+
+  it("never lets an edge sink into the ground: it lifts as much as it tips", () => {
+    for (const t of samples(TWIRL_DURATION)) {
+      const { rock, lift } = donutTwirl(t);
+      expect(lift).toBeGreaterThanOrEqual(0);
+      expect(lift).toBeCloseTo(Math.sin(Math.abs(rock)), 9);
     }
   });
 
-  it("takes a couple of seconds", () => {
-    expect(ROLL_DURATION).toBeGreaterThanOrEqual(1.8);
-    expect(ROLL_DURATION).toBeLessThanOrEqual(3.5);
+  it("only rocks while it lies flat", () => {
+    for (const t of samples(settleStart)) expect(donutTwirl(t).rock).toBe(0);
   });
 });
 

@@ -5,11 +5,17 @@ import { CANDY_PROPS, type CandyKind, type CandyProp } from "./candyLayout";
 import { createStripeTexture, createSwirlTexture } from "./candyTextures";
 import { groundHeight, surfaceNormal } from "./groundCurve";
 import {
+  CHERRY_DURATION,
   DANCE_DURATION,
   JELLY_DURATION,
+  SHELLS_DURATION,
   SPIN_DURATION,
+  TWIRL_DURATION,
+  cherryBounce,
   danceMotion,
+  donutTwirl,
   jellyScale,
+  shellsWobble,
   spinAngle,
 } from "../sim/propMotion";
 import { createRng } from "../sim/rng";
@@ -127,11 +133,32 @@ const Gumdrop = ({ position: [x, z], size, color }: CandyProp) => {
 
 const GLOSSY_ICING = { roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.06 };
 
-// A paper case, swirls of icing and a cherry on top
+// A paper case, swirls of icing and a cherry on top. Click it and the cherry bounces
+// like a ball coming to rest.
+const CHERRY_RADIUS = 0.18; // In cupcake sizes
+
 const Cupcake = ({ position: [x, z], size, color }: CandyProp) => {
   const caseHeight = size * 0.9;
+  const seat = caseHeight + size * 1.28; // Height of the cherry's centre when it is at rest
+  const cherryRef = useRef<THREE.Mesh>(null);
+  const reaction = useReaction(CHERRY_DURATION, (elapsed) => {
+    const cherry = cherryBounce(elapsed);
+    if (!cherryRef.current) return;
+    // Squash towards the icing, so it stays seated rather than floating on a flat bottom
+    cherryRef.current.position.y =
+      seat + cherry.y * size - size * CHERRY_RADIUS * (1 - cherry.scaleY);
+    cherryRef.current.scale.set(cherry.scaleXZ, cherry.scaleY, cherry.scaleXZ);
+  });
+
   return (
-    <group {...placeOnGround(x, z)}>
+    <group
+      {...placeOnGround(x, z)}
+      onClick={(event) => {
+        event.stopPropagation();
+        reaction.trigger();
+      }}
+      {...clickable}
+    >
       <mesh position={[0, caseHeight / 2, 0]} castShadow>
         <cylinderGeometry args={[size * 0.85, size * 0.62, caseHeight, 24]} />
         <meshStandardMaterial color="#f6dcb0" roughness={0.75} />
@@ -151,8 +178,8 @@ const Cupcake = ({ position: [x, z], size, color }: CandyProp) => {
           <meshPhysicalMaterial color={color} {...GLOSSY_ICING} />
         </mesh>
       ))}
-      <mesh position={[0, caseHeight + size * 1.28, 0]} castShadow>
-        <sphereGeometry args={[size * 0.18, 16, 12]} />
+      <mesh ref={cherryRef} position={[0, seat, 0]} castShadow>
+        <sphereGeometry args={[size * CHERRY_RADIUS, 16, 12]} />
         <meshPhysicalMaterial color="#e0102f" {...GLOSSY_ICING} />
       </mesh>
     </group>
@@ -162,6 +189,8 @@ const Cupcake = ({ position: [x, z], size, color }: CandyProp) => {
 // A ring of dough with a cap of glossy icing and sprinkles, lying on the grass
 const SPRINKLE_COLORS = ["#ffffff", "#ffe14d", "#4dc3ff", "#7dff9a", "#ff4d6d"];
 
+// Click it and it stands on its edge and twirls on the spot like a spinning coin, then
+// tips over and rocks to a stop
 const Donut = ({ position: [x, z], size, color }: CandyProp) => {
   const tube = size * 0.45;
   const sprinkles = useMemo(() => {
@@ -173,31 +202,62 @@ const Donut = ({ position: [x, z], size, color }: CandyProp) => {
       color: SPRINKLE_COLORS[Math.floor(rng() * SPRINKLE_COLORS.length)],
     }));
   }, [x, z]);
+
+  // The twirl turns the whole donut about the upright axis; inside that it stands up
+  const spinRef = useRef<THREE.Group>(null);
+  const standRef = useRef<THREE.Group>(null);
+  const flatHeight = tube * 0.85;
+  const standingHeight = size + tube; // The ring's outer edge just touches the ground
+  const reaction = useReaction(TWIRL_DURATION, (elapsed) => {
+    const twirl = donutTwirl(elapsed);
+    if (!spinRef.current || !standRef.current) return;
+    spinRef.current.rotation.y = twirl.spin;
+    // Standing up, then rocking while it settles
+    standRef.current.rotation.x = twirl.stand * (Math.PI / 2) + twirl.rock;
+    standRef.current.position.y =
+      flatHeight + twirl.stand * (standingHeight - flatHeight) + twirl.lift * size;
+  });
+
   return (
-    <group {...placeOnGround(x, z)}>
-      <group position={[0, tube * 0.85, 0]} rotation={[0.18, 0, 0.1]}>
-        <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
-          <torusGeometry args={[size, tube, 20, 48]} />
-          <meshStandardMaterial color="#e8b27a" roughness={0.65} />
-        </mesh>
-        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, tube * 0.28, 0]} scale={[1, 1, 0.6]}>
-          <torusGeometry args={[size, tube * 1.02, 20, 48]} />
-          <meshPhysicalMaterial color={color} {...GLOSSY_ICING} />
-        </mesh>
-        {sprinkles.map((sprinkle, i) => (
-          <mesh
-            key={i}
-            position={[
-              Math.cos(sprinkle.angle) * (size + sprinkle.across * tube),
-              tube * 0.9,
-              Math.sin(sprinkle.angle) * (size + sprinkle.across * tube),
-            ]}
-            rotation={[Math.PI / 2, 0, sprinkle.turn]}
-          >
-            <capsuleGeometry args={[size * 0.025, size * 0.12, 4, 8]} />
-            <meshStandardMaterial color={sprinkle.color} roughness={0.4} />
-          </mesh>
-        ))}
+    <group
+      {...placeOnGround(x, z)}
+      onClick={(event) => {
+        event.stopPropagation();
+        if (reaction.elapsed() === null) reaction.trigger(); // Let it finish first
+      }}
+      {...clickable}
+    >
+      <group ref={spinRef}>
+        <group ref={standRef} position={[0, flatHeight, 0]}>
+          <group rotation={[0.18, 0, 0.1]}>
+            <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+              <torusGeometry args={[size, tube, 20, 48]} />
+              <meshStandardMaterial color="#e8b27a" roughness={0.65} />
+            </mesh>
+            <mesh
+              rotation={[Math.PI / 2, 0, 0]}
+              position={[0, tube * 0.28, 0]}
+              scale={[1, 1, 0.6]}
+            >
+              <torusGeometry args={[size, tube * 1.02, 20, 48]} />
+              <meshPhysicalMaterial color={color} {...GLOSSY_ICING} />
+            </mesh>
+            {sprinkles.map((sprinkle, i) => (
+              <mesh
+                key={i}
+                position={[
+                  Math.cos(sprinkle.angle) * (size + sprinkle.across * tube),
+                  tube * 0.9,
+                  Math.sin(sprinkle.angle) * (size + sprinkle.across * tube),
+                ]}
+                rotation={[Math.PI / 2, 0, sprinkle.turn]}
+              >
+                <capsuleGeometry args={[size * 0.025, size * 0.12, 4, 8]} />
+                <meshStandardMaterial color={sprinkle.color} roughness={0.4} />
+              </mesh>
+            ))}
+          </group>
+        </group>
       </group>
     </group>
   );
@@ -252,21 +312,51 @@ const CandyCane = ({ position: [x, z], size, color }: CandyProp) => {
   );
 };
 
-// Two satin shells with a layer of cream between them
-const Macaron = ({ position: [x, z], size, color }: CandyProp) => (
-  <group {...placeOnGround(x, z)} rotation={[0.12, 0, 0]}>
-    {[0.2, 0.8].map((height) => (
-      <mesh key={height} position={[0, size * height, 0]} scale={[1, 0.42, 1]} castShadow>
-        <sphereGeometry args={[size, 28, 20]} />
-        <meshPhysicalMaterial color={color} roughness={0.45} sheen={0.8} sheenColor="#ffffff" />
+// Two satin shells with a layer of cream between them. Click it and the shells wobble
+// apart in opposite directions while the cream stays put.
+const Macaron = ({ position: [x, z], size, color }: CandyProp) => {
+  const shellRefs = [useRef<THREE.Mesh>(null), useRef<THREE.Mesh>(null)]; // Bottom, top
+  const restHeights = [0.2, 0.8];
+  const reaction = useReaction(SHELLS_DURATION, (elapsed) => {
+    const wobble = shellsWobble(elapsed);
+    const lifts = [wobble.bottomLift, wobble.topLift];
+    const tilts = [wobble.bottomTilt, wobble.topTilt];
+    shellRefs.forEach((ref, i) => {
+      if (!ref.current) return;
+      ref.current.position.y = size * (restHeights[i] + lifts[i]);
+      ref.current.rotation.z = tilts[i];
+    });
+  });
+
+  return (
+    <group
+      {...placeOnGround(x, z)}
+      rotation={[0.12, 0, 0]}
+      onClick={(event) => {
+        event.stopPropagation();
+        reaction.trigger();
+      }}
+      {...clickable}
+    >
+      {restHeights.map((height, i) => (
+        <mesh
+          key={height}
+          ref={shellRefs[i]}
+          position={[0, size * height, 0]}
+          scale={[1, 0.42, 1]}
+          castShadow
+        >
+          <sphereGeometry args={[size, 28, 20]} />
+          <meshPhysicalMaterial color={color} roughness={0.45} sheen={0.8} sheenColor="#ffffff" />
+        </mesh>
+      ))}
+      <mesh position={[0, size * 0.5, 0]}>
+        <cylinderGeometry args={[size * 0.92, size * 0.92, size * 0.26, 28]} />
+        <meshStandardMaterial color="#fff6e8" roughness={0.55} />
       </mesh>
-    ))}
-    <mesh position={[0, size * 0.5, 0]}>
-      <cylinderGeometry args={[size * 0.92, size * 0.92, size * 0.26, 28]} />
-      <meshStandardMaterial color="#fff6e8" roughness={0.55} />
-    </mesh>
-  </group>
-);
+    </group>
+  );
+};
 
 const PROP_COMPONENTS: Record<CandyKind, ComponentType<CandyProp>> = {
   lollipop: Lollipop,

@@ -64,39 +64,43 @@ const smoothstep = (t: number) => {
   return x * x * (3 - 2 * x);
 };
 
-// Donut: it stands up on its edge, rolls once round a circle like a wheel, and lies
-// down flat again where it started. Distances are in donut sizes (its outer radius).
-export const ROLL_RADIUS = 1.8; // Radius of the circle it rolls round
-export const ROLL_DURATION = 2.6;
-export const ROLL_TURNS = 3; // Whole turns of its own, so it ends looking as it began
-const STAND_TIME = 0.35; // Seconds to stand up, and to lie down again
+// Donut: it stands on its edge and twirls on the spot like a spinning coin, slowing
+// down until it tips over, lies flat and rocks a few times as it comes to rest. It
+// never leaves its place.
+export const TWIRL_TURNS = 4; // Whole turns, so it ends looking as it began
+export const TWIRL_SETTLE = 0.8; // Seconds of rocking at the end
+export const TWIRL_DURATION = 3;
+const STAND_TIME = 0.35; // Seconds to stand up
+const SPIN_START = 0.15; // The twirl starts as it comes up
+const LIE_TIME = 0.45; // Seconds to tip over once the twirl has died away
+const MAX_ROCK = 0.2; // Radians
+const ROCKS_PER_SECOND = 2.8;
+const ROCK_DAMPING = 4.5;
 
-export interface DonutRoll {
-  x: number;
-  z: number;
-  heading: number; // Radians, the way it is facing as it travels
+export interface DonutTwirl {
   stand: number; // 0 lying flat, 1 standing on its edge
-  roll: number; // Radians turned round its own axis
+  spin: number; // Radians turned about the upright axis
+  rock: number; // Radians tipped side to side while settling
+  lift: number; // How far it must rise so the tipped edge stays out of the ground
 }
 
-export const donutRoll = (elapsed: number): DonutRoll => {
-  if (elapsed <= 0 || elapsed >= ROLL_DURATION) {
-    return { x: 0, z: 0, heading: 0, stand: 0, roll: 0 };
-  }
+export const donutTwirl = (elapsed: number): DonutTwirl => {
+  if (elapsed <= 0 || elapsed >= TWIRL_DURATION) return { stand: 0, spin: 0, rock: 0, lift: 0 };
+  const flatAt = TWIRL_DURATION - TWIRL_SETTLE; // When it lies flat and starts to rock
+  const tipsAt = flatAt - LIE_TIME; // When the twirl has died away and it tips over
   const stand = Math.min(
     smoothstep(elapsed / STAND_TIME),
-    smoothstep((ROLL_DURATION - elapsed) / STAND_TIME),
+    smoothstep((flatAt - elapsed) / LIE_TIME),
   );
-  // It only travels while it stands, speeding up and slowing down
-  const progress = smoothstep((elapsed - STAND_TIME) / (ROLL_DURATION - 2 * STAND_TIME));
-  const heading = Math.PI * 2 * progress;
-  return {
-    x: ROLL_RADIUS * Math.sin(heading),
-    z: ROLL_RADIUS * (1 - Math.cos(heading)),
-    heading,
-    stand,
-    roll: Math.PI * 2 * ROLL_TURNS * progress,
-  };
+  // Fast at the start, slowing to a stop just as it tips over
+  const u = clamp01((elapsed - SPIN_START) / (tipsAt - SPIN_START));
+  const spin = Math.PI * 2 * TWIRL_TURNS * (1 - (1 - u) ** 3);
+  const settling = Math.max(elapsed - flatAt, 0);
+  const rock =
+    MAX_ROCK *
+    Math.exp(-ROCK_DAMPING * settling) *
+    Math.sin(Math.PI * 2 * ROCKS_PER_SECOND * settling);
+  return { stand, spin, rock, lift: Math.sin(Math.abs(rock)) };
 };
 
 // Cupcake: the cherry bounces like a ball coming to rest. Each hop is quicker and lower
