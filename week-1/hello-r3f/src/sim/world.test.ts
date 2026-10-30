@@ -92,6 +92,11 @@ describe("clicking the world", () => {
     expect(low.radius).toBeGreaterThan(high.radius);
   });
 
+  it("shows how drowsy the ball is in the view", () => {
+    expect(getView(createWorld()).drowsiness).toBe(0);
+    expect(getView(resting()).drowsiness).toBe(1);
+  });
+
   it("shows the expression in the view", () => {
     expect(getView(resting()).expression).toBe("sleepy");
   });

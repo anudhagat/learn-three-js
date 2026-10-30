@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { createBall, stepBall } from "./ball";
-import { DIZZY_CLICKS, DIZZY_DURATION, DIZZY_WINDOW, SLEEP_DELAY } from "./config";
+import {
+  DIZZY_CLICKS,
+  DIZZY_DURATION,
+  DIZZY_WINDOW,
+  SLEEP_DELAY,
+  SLEEP_TRANSITION,
+} from "./config";
 import {
   createExpressionState,
+  getDrowsiness,
   getExpression,
   registerClick,
   type ExpressionState,
@@ -88,5 +95,42 @@ describe("dizzy", () => {
   it("only keeps recent clicks", () => {
     const many = Array.from({ length: 200 }, (_, i) => i * 10);
     expect(clickAt(many).clicks.length).toBeLessThanOrEqual(DIZZY_CLICKS);
+  });
+});
+
+describe("drowsiness", () => {
+  const restedFor = (seconds: number) => ({ ...justSettled(), restTime: seconds });
+
+  it("is zero while the ball is moving, however long it rested before", () => {
+    expect(getDrowsiness({ ...createBall(0, 3), restTime: 50 })).toBe(0);
+    expect(getDrowsiness({ ...createBall(0, -3), restTime: 50 })).toBe(0);
+  });
+
+  it("stays zero until the ball has rested for a second", () => {
+    expect(getDrowsiness(restedFor(0))).toBe(0);
+    expect(getDrowsiness(restedFor(SLEEP_DELAY * 0.9))).toBe(0);
+    expect(getDrowsiness(restedFor(SLEEP_DELAY))).toBe(0);
+  });
+
+  it("then rises smoothly to one", () => {
+    let previous = 0;
+    for (let i = 1; i <= 20; i++) {
+      const drowsiness = getDrowsiness(restedFor(SLEEP_DELAY + (SLEEP_TRANSITION * i) / 20));
+      expect(drowsiness).toBeGreaterThan(previous);
+      previous = drowsiness;
+    }
+    expect(previous).toBeCloseTo(1, 9);
+  });
+
+  it("starts gently, is halfway at the middle, and stays at one", () => {
+    expect(getDrowsiness(restedFor(SLEEP_DELAY + SLEEP_TRANSITION * 0.1))).toBeLessThan(0.1);
+    expect(getDrowsiness(restedFor(SLEEP_DELAY + SLEEP_TRANSITION * 0.5))).toBeCloseTo(0.5, 6);
+    expect(getDrowsiness(restedFor(SLEEP_DELAY + SLEEP_TRANSITION + 30))).toBe(1);
+  });
+
+  it("is already underway when the face switches to sleepy, so there is no jump", () => {
+    const start = restedFor(SLEEP_DELAY);
+    expect(getExpression(start, calm, 30)).toBe("sleepy");
+    expect(getDrowsiness(start)).toBe(0);
   });
 });

@@ -21,3 +21,4 @@ export const LAUNCH_DUST_PARTICLES = 4; // Stars in the small puff when the ball
 export const DUST_MIN_LIFE = 0.6; // Seconds
 export const DUST_LIFE_RANGE = 0.5;
 export const DUST_GRAVITY = -2; // Lighter than the ball's, so the stars float
+export const SLEEP_TRANSITION = 0.9; // Seconds the ball takes to drift off once it starts to

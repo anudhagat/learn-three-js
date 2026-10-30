@@ -21,6 +21,7 @@ import type { Rng } from "./rng";
 import { getBallShadow, type BallShadow } from "./shadow";
 import {
   createExpressionState,
+  getDrowsiness,
   getExpression,
   registerClick,
   type Expression,
@@ -47,6 +48,7 @@ export interface WorldView {
   pitch: number; // Radians the ball looks up
   mode: BallMode;
   expression: Expression;
+  drowsiness: number; // 0 awake to 1 fast asleep
   dust: DustView[];
   shadow: BallShadow;
 }
@@ -85,6 +87,7 @@ export const getView = (world: World): WorldView => ({
   pitch: getBallPitch(world.ball),
   mode: getMode(world.ball),
   expression: getExpression(world.ball, world.expression, world.time),
+  drowsiness: getDrowsiness(world.ball),
   dust: getDustView(world.dust),
   shadow: getBallShadow(world.ball),
 });

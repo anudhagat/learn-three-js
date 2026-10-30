@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { BALL_RADIUS, FLOOR_POSITION_Y, INITIAL_POSITION_Y } from "../sim/config";
 import { clickWorld, createWorld, getView, stepWorld } from "../sim/world";
 import { toDustInstances } from "./dustInstances";
+import { pickFace } from "./faceLook";
 import { createFaceTextures } from "./faceTexture";
 import { createShadowTexture } from "./shadowTexture";
 import { createStarTexture } from "./starTexture";
@@ -42,8 +43,9 @@ export const BouncingScene = () => {
     worldRef.current = stepWorld(worldRef.current, deltaTime, Math.random).world;
     const view = getView(worldRef.current);
 
-    if (materialRef.current && materialRef.current.map !== faces[view.expression]) {
-      materialRef.current.map = faces[view.expression];
+    const face = pickFace(faces, view.expression, view.drowsiness);
+    if (materialRef.current && materialRef.current.map !== face) {
+      materialRef.current.map = face;
     }
     ball.position.y = view.positionY;
     ball.scale.set(...view.scale);
@@ -78,7 +80,7 @@ export const BouncingScene = () => {
         onPointerOut={() => (document.body.style.cursor = "auto")}
       >
         <sphereGeometry args={[BALL_RADIUS, 32, 32]} />
-        <meshStandardMaterial ref={materialRef} map={faces.happy} />
+        <meshStandardMaterial ref={materialRef} map={faces.drowsy[0]} />
       </mesh>
       <mesh
         ref={shadowRef}
