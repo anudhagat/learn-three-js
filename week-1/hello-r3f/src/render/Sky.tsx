@@ -67,6 +67,8 @@ const cloudMaterial = (sunDirection: THREE.Vector3) =>
     uniforms: {
       uSunDir: { value: sunDirection },
       uRim: { value: CLOUD_RIM },
+      uShade: { value: CLOUD_SHADE },
+      uLight: { value: CLOUD_LIGHT },
     },
     vertexShader: /* glsl */ `
       varying vec3 vColor;
@@ -84,6 +86,8 @@ const cloudMaterial = (sunDirection: THREE.Vector3) =>
     fragmentShader: /* glsl */ `
       uniform vec3 uSunDir;
       uniform vec3 uRim;
+      uniform vec3 uShade;
+      uniform vec3 uLight;
       varying vec3 vColor;
       varying vec3 vNormalW;
       varying vec3 vViewW;
@@ -93,7 +97,11 @@ const cloudMaterial = (sunDirection: THREE.Vector3) =>
         float towardSun = max(dot(n, uSunDir), 0.0);
         float edge = pow(1.0 - max(dot(n, v), 0.0), 2.0);
         float rim = edge * smoothstep(0.0, 0.7, towardSun);
-        vec3 color = vColor + uRim * rim * 0.9 + uRim * towardSun * 0.12;
+        // Inside each puff: shaded underside rising to a lit top
+        float up = n.y * 0.5 + 0.5;
+        vec3 color = mix(vColor, uShade, (1.0 - smoothstep(0.15, 0.65, up)) * 0.6);
+        color = mix(color, uLight, smoothstep(0.6, 1.0, up) * 0.35);
+        color += uRim * rim * 0.9 + uRim * towardSun * 0.12;
         gl_FragColor = vec4(color, 1.0);
         #include <colorspace_fragment>
       }
