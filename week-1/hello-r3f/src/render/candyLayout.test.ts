@@ -1,13 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { CANDY_PROPS, FLOOR_SIZE } from "./candyLayout";
+import { CANDY_PROPS, FLOOR_SIZE, type CandyKind } from "./candyLayout";
+import { isInView } from "./grassBlades";
 
 const distance = (a: [number, number], b: [number, number]) =>
   Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 describe("candy layout", () => {
-  it("has lollipops and gumdrops", () => {
-    expect(CANDY_PROPS.filter((p) => p.kind === "lollipop").length).toBeGreaterThanOrEqual(2);
-    expect(CANDY_PROPS.filter((p) => p.kind === "gumdrop").length).toBeGreaterThanOrEqual(4);
+  it("has a good number of every kind of candy", () => {
+    const minimum: Record<CandyKind, number> = {
+      lollipop: 2,
+      gumdrop: 4,
+      cupcake: 2,
+      donut: 2,
+      candyCane: 2,
+      macaron: 2,
+    };
+    for (const [kind, count] of Object.entries(minimum)) {
+      expect(CANDY_PROPS.filter((p) => p.kind === kind).length).toBeGreaterThanOrEqual(count);
+    }
+  });
+
+  it("keeps every prop where the camera can see it", () => {
+    for (const prop of CANDY_PROPS) {
+      expect(isInView(prop.position[0], prop.position[1])).toBe(true);
+    }
   });
 
   it("keeps props clear of the ball and its dust", () => {

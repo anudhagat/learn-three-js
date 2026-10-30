@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, type ComponentType } from "react";
 import * as THREE from "three";
 import { FLOOR_POSITION_Y } from "../sim/config";
-import { CANDY_PROPS, type CandyProp } from "./candyLayout";
+import { CANDY_PROPS, type CandyKind, type CandyProp } from "./candyLayout";
 import { createStripeTexture, createSwirlTexture } from "./candyTextures";
 import { groundHeight, surfaceNormal } from "./groundCurve";
+import { createRng } from "../sim/rng";
 
 // Where a prop stands: on the curved ground, tilted to follow the surface
 const placeOnGround = (x: number, z: number) => {
@@ -57,14 +58,142 @@ const Gumdrop = ({ position: [x, z], size, color }: CandyProp) => (
   </mesh>
 );
 
+const GLOSSY_ICING = { roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.06 };
+
+// A paper case, swirls of icing and a cherry on top
+const Cupcake = ({ position: [x, z], size, color }: CandyProp) => {
+  const caseHeight = size * 0.9;
+  return (
+    <group {...placeOnGround(x, z)}>
+      <mesh position={[0, caseHeight / 2, 0]} castShadow>
+        <cylinderGeometry args={[size * 0.85, size * 0.62, caseHeight, 24]} />
+        <meshStandardMaterial color="#f6dcb0" roughness={0.75} />
+      </mesh>
+      {[
+        [0.9, 0.55, 0.12],
+        [0.68, 0.5, 0.52],
+        [0.45, 0.45, 0.86],
+      ].map(([radius, squash, lift]) => (
+        <mesh
+          key={lift}
+          position={[0, caseHeight + size * lift * 0.9, 0]}
+          scale={[1, squash, 1]}
+          castShadow
+        >
+          <sphereGeometry args={[size * radius, 28, 20]} />
+          <meshPhysicalMaterial color={color} {...GLOSSY_ICING} />
+        </mesh>
+      ))}
+      <mesh position={[0, caseHeight + size * 1.28, 0]} castShadow>
+        <sphereGeometry args={[size * 0.18, 16, 12]} />
+        <meshPhysicalMaterial color="#e0102f" {...GLOSSY_ICING} />
+      </mesh>
+    </group>
+  );
+};
+
+// A ring of dough with a cap of glossy icing and sprinkles, lying on the grass
+const SPRINKLE_COLORS = ["#ffffff", "#ffe14d", "#4dc3ff", "#7dff9a", "#ff4d6d"];
+
+const Donut = ({ position: [x, z], size, color }: CandyProp) => {
+  const tube = size * 0.45;
+  const sprinkles = useMemo(() => {
+    const rng = createRng(Math.round(x * 100 + z * 10));
+    return Array.from({ length: 16 }, () => ({
+      angle: rng() * Math.PI * 2,
+      across: (rng() - 0.5) * 0.7, // How far round the tube, so they stay on the icing
+      turn: rng() * Math.PI,
+      color: SPRINKLE_COLORS[Math.floor(rng() * SPRINKLE_COLORS.length)],
+    }));
+  }, [x, z]);
+  return (
+    <group {...placeOnGround(x, z)}>
+      <group position={[0, tube * 0.85, 0]} rotation={[0.18, 0, 0.1]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <torusGeometry args={[size, tube, 20, 48]} />
+          <meshStandardMaterial color="#e8b27a" roughness={0.65} />
+        </mesh>
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, tube * 0.28, 0]} scale={[1, 1, 0.6]}>
+          <torusGeometry args={[size, tube * 1.02, 20, 48]} />
+          <meshPhysicalMaterial color={color} {...GLOSSY_ICING} />
+        </mesh>
+        {sprinkles.map((sprinkle, i) => (
+          <mesh
+            key={i}
+            position={[
+              Math.cos(sprinkle.angle) * (size + sprinkle.across * tube),
+              tube * 0.9,
+              Math.sin(sprinkle.angle) * (size + sprinkle.across * tube),
+            ]}
+            rotation={[Math.PI / 2, 0, sprinkle.turn]}
+          >
+            <capsuleGeometry args={[size * 0.025, size * 0.12, 4, 8]} />
+            <meshStandardMaterial color={sprinkle.color} roughness={0.4} />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  );
+};
+
+// A striped cane with a hooked top: a tube along a straight stem and a half circle
+const caneCurve = (height: number, hookRadius: number) => {
+  const points: THREE.Vector3[] = [];
+  for (let i = 0; i <= 8; i++) points.push(new THREE.Vector3(0, (height * i) / 8, 0));
+  for (let i = 1; i <= 12; i++) {
+    const angle = (i / 12) * Math.PI;
+    points.push(
+      new THREE.Vector3(hookRadius - hookRadius * Math.cos(angle), height + hookRadius * Math.sin(angle), 0),
+    );
+  }
+  return new THREE.CatmullRomCurve3(points);
+};
+
+const CandyCane = ({ position: [x, z], size, color }: CandyProp) => {
+  const stripes = useMemo(() => createStripeTexture(color, 12, false), [color]);
+  const geometry = useMemo(
+    () => new THREE.TubeGeometry(caneCurve(size * 2.2, size * 0.5), 60, size * 0.14, 14, false),
+    [size],
+  );
+  return (
+    <group {...placeOnGround(x, z)} rotation-y={0.5}>
+      <mesh geometry={geometry} castShadow>
+        <meshPhysicalMaterial map={stripes} {...HARD_CANDY} />
+      </mesh>
+    </group>
+  );
+};
+
+// Two satin shells with a layer of cream between them
+const Macaron = ({ position: [x, z], size, color }: CandyProp) => (
+  <group {...placeOnGround(x, z)} rotation={[0.12, 0, 0]}>
+    {[0.2, 0.8].map((height) => (
+      <mesh key={height} position={[0, size * height, 0]} scale={[1, 0.42, 1]} castShadow>
+        <sphereGeometry args={[size, 28, 20]} />
+        <meshPhysicalMaterial color={color} roughness={0.45} sheen={0.8} sheenColor="#ffffff" />
+      </mesh>
+    ))}
+    <mesh position={[0, size * 0.5, 0]}>
+      <cylinderGeometry args={[size * 0.92, size * 0.92, size * 0.26, 28]} />
+      <meshStandardMaterial color="#fff6e8" roughness={0.55} />
+    </mesh>
+  </group>
+);
+
+const PROP_COMPONENTS: Record<CandyKind, ComponentType<CandyProp>> = {
+  lollipop: Lollipop,
+  gumdrop: Gumdrop,
+  cupcake: Cupcake,
+  donut: Donut,
+  candyCane: CandyCane,
+  macaron: Macaron,
+};
+
 export const CandyProps = () => (
   <>
-    {CANDY_PROPS.map((prop) =>
-      prop.kind === "lollipop" ? (
-        <Lollipop key={prop.position.join()} {...prop} />
-      ) : (
-        <Gumdrop key={prop.position.join()} {...prop} />
-      ),
-    )}
+    {CANDY_PROPS.map((prop) => {
+      const Prop = PROP_COMPONENTS[prop.kind];
+      return <Prop key={prop.position.join()} {...prop} />;
+    })}
   </>
 );

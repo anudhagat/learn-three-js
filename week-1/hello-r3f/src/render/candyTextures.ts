@@ -212,14 +212,18 @@ export const createSwirlTexture = (color: string) => {
   return toTexture(canvas);
 };
 
-// Bands of `color` and white that repeat along the length, for striped candy sticks
-export const createStripeTexture = (color: string, bands = 6) => {
-  const { canvas, ctx } = makeCanvas(32, 256);
+// Bands of `color` and white that repeat along the texture. `alongV` runs them up the
+// texture (for a cylinder, as rings around it); otherwise across (along a tube).
+export const createStripeTexture = (color: string, bands = 6, alongV = true) => {
+  const { canvas, ctx } = makeCanvas(256, 256);
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, 32, 256);
+  ctx.fillRect(0, 0, 256, 256);
   ctx.fillStyle = color;
   const band = 256 / (bands * 2);
-  for (let i = 0; i < bands; i++) ctx.fillRect(0, i * band * 2, 32, band);
+  for (let i = 0; i < bands; i++) {
+    if (alongV) ctx.fillRect(0, i * band * 2, 256, band);
+    else ctx.fillRect(i * band * 2, 0, band, 256);
+  }
   const texture = toTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   return texture;
