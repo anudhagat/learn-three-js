@@ -19,7 +19,7 @@ export const CANDY_PROPS: CandyProp[] = [
   { kind: "gumdrop", position: [-7.5, -6], size: 1, color: "#4de1a0" },
   { kind: "gumdrop", position: [9, -1.5], size: 0.9, color: "#b36bff" },
   { kind: "gumdrop", position: [2.5, -8], size: 1.1, color: "#ff8fd0" },
-  { kind: "gumdrop", position: [-2, -12], size: 1.3, color: "#4dc3ff" },
+  { kind: "gumdrop", position: [0.6, -12.5], size: 1.3, color: "#4dc3ff" },
   { kind: "gumdrop", position: [11, -9], size: 1.5, color: "#ff7a45" },
   { kind: "cupcake", position: [-8.5, -0.5], size: 0.9, color: "#ff8fc8" },
   { kind: "cupcake", position: [8.2, -7.5], size: 1, color: "#8fe0ff" },
